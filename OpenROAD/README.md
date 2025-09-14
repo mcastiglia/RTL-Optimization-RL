@@ -8,11 +8,24 @@ build the image
 
 `scripts/build_sif.sh --def openroad.def --out openroad.sif`
 
+Clone OpenROAD flow example scripts
+
+`git submodule update`
+
+Checkout older version of repo, as master branch is incompatible with version of OpenROAD
+
+`git checkout 659f54e2`
+
 run OpenROAD (example)
 
 `apptainer shell --bind "$PWD":/workspace ./openroad.sif`
 
-`cd /workspace`
+`cd /workspace/OpenROAD-flow-scripts/flow/`
 
-`openroad -exit your_script.tcl`
+`make DESIGN_CONFIG=./designs/nangate45/aes/config.mk`
 
+This will perform the RTL-to-GDS flow for an AES core
+
+The resulting design files will be under OpenROAD/OpenROAD-flow-scripts/flow/results/nangate45/aes/base
+
+The generated reports at each step in the flow will be under OpenROAD/OpenROAD-flow-scripts/flow/reports/nangate45/aes/base
