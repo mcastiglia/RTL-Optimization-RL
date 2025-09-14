@@ -1,6 +1,6 @@
 # OpenROAD Apptainer Image Usage Instructions 
 
-from repo root change script permissions
+from `/OpenROAD/` change script permissions
 
 `chmod +x scripts/*.sh`
 
@@ -8,13 +8,17 @@ build the image
 
 `scripts/build_sif.sh --def openroad.def --out openroad.sif`
 
-Clone OpenROAD flow example scripts
+Add git submodule for OpenROAD flow example scripts
 
 `git submodule update`
 
 Checkout older version of repo, as master branch is incompatible with version of OpenROAD
 
+`cd /OpenROAD-flow-scripts/`
+
 `git checkout 659f54e2`
+
+`cd ..`
 
 run OpenROAD (example)
 
