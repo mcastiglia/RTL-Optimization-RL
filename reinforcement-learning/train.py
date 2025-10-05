@@ -70,6 +70,8 @@ class CircuitGraphDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         return self.data_list[idx]
 
+import concurrent.futures
+
 # Supervised training of Graphormer to predict area and power
 generators = [generate_rca_graph, generate_prefix_adder_graph, generate_kogge_stone_graph, generate_sklansky_graph, generate_brent_kung_graph]
 train_graphs = []
@@ -78,7 +80,13 @@ for _ in range(100):
     n = 16  # Fixed for training
     g = gen(n)
     train_graphs.append(g)
-train_labels = [[compute_area(g), compute_power(g)] for g in train_graphs]
+
+# Generate accurate labels using synthesis (fast flow for intermediate)
+def get_label(g):
+    return get_real_area_power(g, 'fast')
+
+with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+    train_labels = list(executor.map(get_label, train_graphs))
 
 train_dataset = CircuitGraphDataset(train_graphs, train_labels)
 
@@ -121,7 +129,7 @@ class AdderEnv(gym.Env):
         self.current_graph = generate_rca_graph(self.n)  # Start with RCA
         self.update_features()  # Ensure features are up to date
         self.step_count = 0
-        self.current_cost = self.compute_cost()
+        self.current_cost = self.compute_cost('full')  # Use full flow for initial
         return self.get_obs()
 
     def get_obs(self):
@@ -141,6 +149,10 @@ class AdderEnv(gym.Env):
         bit_positions = torch.arange(n, dtype=torch.float)
         self.current_graph.x = torch.stack([bit_positions, fan_in, fan_out, delay_levels], dim=1)
 
+    def compute_cost(self, flow_type='fast'):
+        real_area, real_power = get_real_area_power(self.current_graph, flow_type)
+        return 0.5 * real_area + 0.5 * real_power
+
     def step(self, action):
         # Decode action: add_remove = action // (n*n), i = (action % (n*n)) // n, j = action % n
         total = self.n * self.n
@@ -148,6 +160,7 @@ class AdderEnv(gym.Env):
         idx = action % total
         i = idx // self.n
         j = idx % self.n
+        flow_type = 'full' if self.step_count == 0 or self.step_count == self.max_steps - 1 else 'fast'
         if i == j:
             # No self-loops
             reward = 0
@@ -159,7 +172,7 @@ class AdderEnv(gym.Env):
                     mask = ~((self.current_graph.edge_index[0] == i) & (self.current_graph.edge_index[1] == j))
                     self.current_graph.edge_index = self.current_graph.edge_index[:, mask]
                     self.update_features()
-                    new_cost = self.compute_cost()
+                    new_cost = self.compute_cost(flow_type)
                     reward = self.current_cost - new_cost
                     self.current_cost = new_cost
                 else:
@@ -170,7 +183,7 @@ class AdderEnv(gym.Env):
                     new_edge = torch.tensor([[i], [j]], dtype=torch.long)
                     self.current_graph.edge_index = torch.cat([self.current_graph.edge_index, new_edge], dim=1)
                     self.update_features()
-                    new_cost = self.compute_cost()
+                    new_cost = self.compute_cost(flow_type)
                     reward = self.current_cost - new_cost
                     self.current_cost = new_cost
                 else:

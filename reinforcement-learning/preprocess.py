@@ -188,3 +188,40 @@ if __name__ == '__main__':
     print("Edge index:", graph.edge_index.tolist())
     print("Number of nodes:", graph.num_nodes)
     print("Number of edges:", graph.num_edges)
+
+def get_real_area_power(graph, flow_type='fast'):
+    import subprocess
+    import os
+    
+    tcl_script = 'full_flow.tcl' if flow_type == 'full' else 'fast_flow.tcl'
+    base_dir = os.environ.get('BASE_DIR', '.')
+    openroad_dir = f"{base_dir}/OpenROAD"
+    
+    # Assume the TCL script is designed to run synthesis and output area/power
+    # For now, this is a placeholder - you need to implement the actual synthesis call
+    # The TCL script should be modified to accept design parameters or use environment variables
+
+    cmd = f"apptainer exec --bind {openroad_dir}:/workspace ./openroad.sif bash -c \"cd {openroad_dir}/prefix-flow && openroad {tcl_script}\""
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    
+    # Parse area and power from the output
+    area = None
+    power = None
+    for line in result.stdout.split('\n'):
+        if 'Area:' in line:
+            try:
+                area = float(line.split('result: design_area = ')[1].strip().split()[0])
+            except:
+                pass
+        if 'Power:' in line:
+            try:
+                power = float(line.split('result: design_power = ')[1].strip().split()[0])
+            except:
+                pass
+    
+    if area is None or power is None:
+        # Fallback to analytical computation
+        print(f"Warning: Could not parse area/power from synthesis output, using analytical values")
+        area, power = compute_area(graph), compute_power(graph)
+    
+    return area, power
