@@ -9,8 +9,7 @@ import torch.nn.functional as F
 from torch_geometric.data import Data
 from torch_geometric.nn.models import Graphormer
 from torch_geometric.loader import DataLoader
-from torch_geometric.utils import degree, dense_to_sparse, global_mean_pool
-from torch_geometric.nn import GCNConv
+from torch_geometric.utils import degree, dense_to_sparse
 from stable_baselines3.common.policies import ActorCriticPolicy
 
 class GraphPolicy(ActorCriticPolicy):
@@ -18,26 +17,20 @@ class GraphPolicy(ActorCriticPolicy):
         super().__init__(observation_space, action_space, lr_schedule, net_arch, activation_fn, *args, **kwargs)
         n = 16
         self.n = n
-        self.gnn = GCNConv(4, 64)  # input 4 features, output 64
+        self.gnn = Graphormer(num_node_types=None, num_edge_types=1, num_classes=None, embed_dim=64)
         self.policy_net = nn.Linear(64, action_space.n)
         self.value_net = nn.Linear(64, 1)
 
     def forward(self, obs):
         # obs shape: (batch, n*4 + n*n)
         batch_size = obs.shape[0]
-        x = obs[:, :self.n * 4].view(batch_size * self.n, 4)
-        adj_flat = obs[:, self.n * 4:].view(batch_size * self.n, self.n)
-        # For each in batch, convert to edge_index
         embeddings = []
         for i in range(batch_size):
-            adj = adj_flat[i * self.n:(i + 1) * self.n]
-            edge_index = dense_to_sparse(adj)[0]
-            if edge_index.numel() == 0:
-                # No edges, use zero embedding
-                emb = torch.zeros(self.n, 64, device=obs.device)
-            else:
-                emb = self.gnn(x[i * self.n:(i + 1) * self.n], edge_index)
-            graph_emb = global_mean_pool(emb, torch.zeros(self.n, dtype=torch.long, device=obs.device))
+            x = obs[i, :self.n * 4].view(self.n, 4)
+            adj_flat = obs[i, self.n * 4:].view(self.n, self.n)
+            edge_index = dense_to_sparse(adj_flat)[0]
+            data = Data(x=x, edge_index=edge_index)
+            graph_emb = self.gnn(data)
             embeddings.append(graph_emb)
         graph_emb = torch.stack(embeddings)
         action_logits = self.policy_net(graph_emb)
@@ -100,7 +93,7 @@ optimizer = torch.optim.Adam(list(model.parameters()) + list(predictor.parameter
 # Training loop
 for epoch in range(10):
     model.train()
-    predicwelltor.train()
+    predictor.train()
     for batch in train_loader:
         optimizer.zero_grad()
         embedding = model(batch)
