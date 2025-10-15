@@ -52,8 +52,8 @@ class AdderEnv(gym.Env):
     def step(self, action):
         g = self.generators[action](self.bit_width)
         area = compute_area(g)
-        power = compute_power(g)
-        reward = - (0.5 * area + 0.5 * power)  # Negative weighted sum for minimization
+        #power = compute_power(g)
+        reward = - area# Negative weighted sum for minimization
         done = True  # Single-step episode
         return np.array([self.bit_width], dtype=np.float32), reward, done, {}
 
@@ -92,7 +92,7 @@ train_dataset = CircuitGraphDataset(train_graphs, train_labels)
 
 embed_dim = 768
 model = Graphormer(num_node_types=None, num_edge_types=1, num_classes=None, embed_dim=embed_dim)
-predictor = torch.nn.Linear(embed_dim, 2)
+predictor = torch.nn.Linear(embed_dim, 1)
 
 train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True)
 
@@ -150,8 +150,8 @@ class AdderEnv(gym.Env):
         self.current_graph.x = torch.stack([bit_positions, fan_in, fan_out, delay_levels], dim=1)
 
     def compute_cost(self, flow_type='fast'):
-        real_area, real_power = get_real_area_power(self.current_graph, flow_type)
-        return 0.5 * real_area + 0.5 * real_power
+        real_area = get_real_area_power(self.current_graph, flow_type)
+        return real_area 
 
     def step(self, action):
         # Decode action: add_remove = action // (n*n), i = (action % (n*n)) // n, j = action % n
