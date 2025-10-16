@@ -24,7 +24,7 @@ yosys_script_format = \
 hierarchy -top adder_top
 flatten
 proc; techmap; opt;
-abc -fast -liberty {}NangateOpenCellLibrary_typical.lib
+abc -fast -liberty {}/NangateOpenCellLibrary_typical.lib
 write_verilog {}
 '''
 
