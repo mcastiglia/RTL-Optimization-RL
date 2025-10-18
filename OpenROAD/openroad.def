@@ -51,7 +51,7 @@ From: ubuntu:22.04
     python3 -m venv /opt/venv
     . /opt/venv/bin/activate
     pip install --upgrade pip
-    pip install pyyaml torch numpy tqdm scipy gym
+    pip install pyyaml torch numpy tqdm scipy gym torch-geometric stable-baselines3
 
 
 %environment
