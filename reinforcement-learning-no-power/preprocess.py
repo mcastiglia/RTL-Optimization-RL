@@ -219,9 +219,9 @@ def get_real_area_power(graph, flow_type='fast'):
             except:
                 pass
     
-    if area is None or power is None:
+    if area is None and power is None:
         # Fallback to analytical computation
         print(f"Warning: Could not parse area/power from synthesis output, using analytical values")
         area, power = compute_area(graph), compute_power(graph)
     
-    return area, power
+    return area

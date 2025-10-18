@@ -1,4 +1,11 @@
-*.sif
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/*.sif
 OpenROAD/OpenROAD-flow-scripts/
 OpenROAD/prefix-flow/results
 /out/

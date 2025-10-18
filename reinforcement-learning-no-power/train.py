@@ -7,17 +7,41 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.data import Data
-from torch_geometric.nn.models import Graphormer
+from torch_geometric.nn import GCNConv, global_mean_pool
 from torch_geometric.loader import DataLoader
 from torch_geometric.utils import degree, dense_to_sparse
 from stable_baselines3.common.policies import ActorCriticPolicy
+
+class GCNEncoder(nn.Module):
+    def __init__(self, in_channels=4, hidden_dim=256, out_dim=768, dropout=0.1):
+        super().__init__()
+        self.conv1 = GCNConv(in_channels, hidden_dim)
+        self.conv2 = GCNConv(hidden_dim, out_dim)
+        self.dropout = nn.Dropout(dropout)
+        self.act = nn.ReLU()
+
+    def forward(self, data):
+        # data.x: [num_nodes_total, in_channels]
+        # data.edge_index: [2, num_edges_total]
+        # data.batch: [num_nodes_total]  (present when batching)
+        x, edge_index = data.x, data.edge_index
+        x = self.act(self.conv1(x, edge_index))
+        x = self.dropout(x)
+        x = self.act(self.conv2(x, edge_index))
+        # pool to graph-level: returns [batch_size, out_dim]
+        batch = getattr(data, 'batch', None)
+        if batch is None:
+            # single graph: average nodes
+            return x.mean(dim=0, keepdim=True)  # [1, out_dim]
+        return global_mean_pool(x, batch)       # [batch_size, out_dim]
+    
 
 class GraphPolicy(ActorCriticPolicy):
     def __init__(self, observation_space, action_space, lr_schedule, net_arch=None, activation_fn=nn.Tanh, *args, **kwargs):
         super().__init__(observation_space, action_space, lr_schedule, net_arch, activation_fn, *args, **kwargs)
         n = 16
         self.n = n
-        self.gnn = Graphormer(num_node_types=None, num_edge_types=1, num_classes=None, embed_dim=64)
+        self.gnn = GCNEncoder(in_channels=4, hidden_dim=128, out_dim=64, dropout=0.1)
         self.policy_net = nn.Linear(64, action_space.n)
         self.value_net = nn.Linear(64, 1)
 
@@ -30,6 +54,7 @@ class GraphPolicy(ActorCriticPolicy):
             adj_flat = obs[i, self.n * 4:].view(self.n, self.n)
             edge_index = dense_to_sparse(adj_flat)[0]
             data = Data(x=x, edge_index=edge_index)
+            data = data.to(self.device)   # you need to store device on the policy (ActorCriticPolicy provides device)
             graph_emb = self.gnn(data)
             embeddings.append(graph_emb)
         graph_emb = torch.stack(embeddings)
@@ -52,8 +77,8 @@ class AdderEnv(gym.Env):
     def step(self, action):
         g = self.generators[action](self.bit_width)
         area = compute_area(g)
-        power = compute_power(g)
-        reward = - (0.5 * area + 0.5 * power)  # Negative weighted sum for minimization
+        #power = compute_power(g)
+        reward = - area# Negative weighted sum for minimization
         done = True  # Single-step episode
         return np.array([self.bit_width], dtype=np.float32), reward, done, {}
 
@@ -91,21 +116,30 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
 train_dataset = CircuitGraphDataset(train_graphs, train_labels)
 
 embed_dim = 768
-model = Graphormer(num_node_types=None, num_edge_types=1, num_classes=None, embed_dim=embed_dim)
-predictor = torch.nn.Linear(embed_dim, 2)
+model = GCNEncoder(in_channels=4, hidden_dim=256, out_dim=embed_dim, dropout=0.1)
+predictor = torch.nn.Linear(embed_dim, 1)
 
 train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True)
 
-optimizer = torch.optim.Adam(list(model.parameters()) + list(predictor.parameters()), lr=2e-5, weight_decay=0.01)
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = model.to(device)
+predictor = predictor.to(device)
+optimizer = torch.optim.Adam(list(model.parameters()) + list(predictor.parameters()), lr=2e-5)
 
 # Training loop
 for epoch in range(10):
     model.train()
     predictor.train()
     for batch in train_loader:
+        batch = batch.to(device)           # if using device
+        batch.y = batch.y.float()          # ensure float
+        # optionally ensure batch.y shape: [batch_size, 1]
+        if batch.y.dim() == 1:
+            batch.y = batch.y.unsqueeze(1)
         optimizer.zero_grad()
         embedding = model(batch)
         out = predictor(embedding)
+        print('embedding', embedding.shape, 'out', out.shape, 'batch.y', batch.y.shape)
         loss = F.mse_loss(out, batch.y)
         loss.backward()
         optimizer.step()
@@ -150,8 +184,8 @@ class AdderEnv(gym.Env):
         self.current_graph.x = torch.stack([bit_positions, fan_in, fan_out, delay_levels], dim=1)
 
     def compute_cost(self, flow_type='fast'):
-        real_area, real_power = get_real_area_power(self.current_graph, flow_type)
-        return 0.5 * real_area + 0.5 * real_power
+        real_area = get_real_area_power(self.current_graph, flow_type)
+        return real_area 
 
     def step(self, action):
         # Decode action: add_remove = action // (n*n), i = (action % (n*n)) // n, j = action % n
