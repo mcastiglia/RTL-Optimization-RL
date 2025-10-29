@@ -1,0 +1,79 @@
+=== Supervised training started: Sat Oct 18 17:13:56 2025 ===
+Epoch 1 avg_loss=7032.293344
+Epoch 2 avg_loss=7255.427979
+Epoch 3 avg_loss=7189.209867
+Epoch 4 avg_loss=7021.372934
+Epoch 5 avg_loss=7025.554312
+Epoch 6 avg_loss=6964.072698
+Epoch 7 avg_loss=7061.222224
+Epoch 8 avg_loss=6632.121113
+Epoch 9 avg_loss=6608.525597
+Epoch 10 avg_loss=6641.883770
+Episode 0 reward=0.000000 saved:output_data/ep0/final_graph_ep0.pt,output_data/ep0/final_graph_ep0.json
+Episode 1 reward=-0.131016 saved:output_data/ep1/final_graph_ep1.pt,output_data/ep1/final_graph_ep1.json
+Episode 2 reward=0.036319 saved:output_data/ep2/final_graph_ep2.pt,output_data/ep2/final_graph_ep2.json
+Episode 3 reward=0.000000 saved:output_data/ep3/final_graph_ep3.pt,output_data/ep3/final_graph_ep3.json
+Episode 4 reward=0.141337 saved:output_data/ep4/final_graph_ep4.pt,output_data/ep4/final_graph_ep4.json
+Episode 5 reward=-0.154628 saved:output_data/ep5/final_graph_ep5.pt,output_data/ep5/final_graph_ep5.json
+Episode 6 reward=0.305975 saved:output_data/ep6/final_graph_ep6.pt,output_data/ep6/final_graph_ep6.json
+Episode 7 reward=0.000000 saved:output_data/ep7/final_graph_ep7.pt,output_data/ep7/final_graph_ep7.json
+Episode 8 reward=0.296529 saved:output_data/ep8/final_graph_ep8.pt,output_data/ep8/final_graph_ep8.json
+Episode 9 reward=-0.095787 saved:output_data/ep9/final_graph_ep9.pt,output_data/ep9/final_graph_ep9.json
+Episode 10 reward=0.000000 saved:output_data/ep10/final_graph_ep10.pt,output_data/ep10/final_graph_ep10.json
+Episode 11 reward=-0.142843 saved:output_data/ep11/final_graph_ep11.pt,output_data/ep11/final_graph_ep11.json
+Episode 12 reward=-0.022174 saved:output_data/ep12/final_graph_ep12.pt,output_data/ep12/final_graph_ep12.json
+Episode 13 reward=0.000000 saved:output_data/ep13/final_graph_ep13.pt,output_data/ep13/final_graph_ep13.json
+Episode 14 reward=0.000000 saved:output_data/ep14/final_graph_ep14.pt,output_data/ep14/final_graph_ep14.json
+Episode 15 reward=0.000000 saved:output_data/ep15/final_graph_ep15.pt,output_data/ep15/final_graph_ep15.json
+Episode 16 reward=0.000000 saved:output_data/ep16/final_graph_ep16.pt,output_data/ep16/final_graph_ep16.json
+Episode 17 reward=0.000000 saved:output_data/ep17/final_graph_ep17.pt,output_data/ep17/final_graph_ep17.json
+Episode 18 reward=-0.038834 saved:output_data/ep18/final_graph_ep18.pt,output_data/ep18/final_graph_ep18.json
+Episode 19 reward=-0.254582 saved:output_data/ep19/final_graph_ep19.pt,output_data/ep19/final_graph_ep19.json
+=== Evaluation completed: Sat Oct 18 17:16:35 2025 avg_reward=-0.002985 ===
+Saved model weights: output_data/gnn_encoder.pt, output_data/predictor.pt
+Saved RL model: output_data/rl_model.zip
+=== Supervised training started: Sat Oct 18 17:33:13 2025 ===
+Epoch 1 avg_loss=6103.567683
+Epoch 2 avg_loss=6115.689002
+Epoch 3 avg_loss=6001.500376
+Epoch 4 avg_loss=5844.168025
+Epoch 5 avg_loss=5953.149602
+Epoch 6 avg_loss=5734.957351
+Epoch 7 avg_loss=5727.879770
+Epoch 8 avg_loss=5617.525654
+Epoch 9 avg_loss=5551.603459
+Epoch 10 avg_loss=5436.083308
+Episode 0 reward=0.305068 saved:output_data/ep0/final_graph_ep0.pt,output_data/ep0/final_graph_ep0.json
+Episode 1 reward=-0.035667 saved:output_data/ep1/final_graph_ep1.pt,output_data/ep1/final_graph_ep1.json
+Episode 2 reward=0.182092 saved:output_data/ep2/final_graph_ep2.pt,output_data/ep2/final_graph_ep2.json
+Episode 3 reward=0.282165 saved:output_data/ep3/final_graph_ep3.pt,output_data/ep3/final_graph_ep3.json
+Episode 4 reward=0.000000 saved:output_data/ep4/final_graph_ep4.pt,output_data/ep4/final_graph_ep4.json
+Episode 5 reward=0.000000 saved:output_data/ep5/final_graph_ep5.pt,output_data/ep5/final_graph_ep5.json
+Episode 6 reward=0.349457 saved:output_data/ep6/final_graph_ep6.pt,output_data/ep6/final_graph_ep6.json
+Episode 7 reward=-0.063645 saved:output_data/ep7/final_graph_ep7.pt,output_data/ep7/final_graph_ep7.json
+Episode 8 reward=0.243076 saved:output_data/ep8/final_graph_ep8.pt,output_data/ep8/final_graph_ep8.json
+Episode 9 reward=0.000000 saved:output_data/ep9/final_graph_ep9.pt,output_data/ep9/final_graph_ep9.json
+Episode 10 reward=0.349457 saved:output_data/ep10/final_graph_ep10.pt,output_data/ep10/final_graph_ep10.json
+Episode 11 reward=0.000000 saved:output_data/ep11/final_graph_ep11.pt,output_data/ep11/final_graph_ep11.json
+Episode 12 reward=0.194736 saved:output_data/ep12/final_graph_ep12.pt,output_data/ep12/final_graph_ep12.json
+Episode 13 reward=0.000000 saved:output_data/ep13/final_graph_ep13.pt,output_data/ep13/final_graph_ep13.json
+Episode 14 reward=0.168041 saved:output_data/ep14/final_graph_ep14.pt,output_data/ep14/final_graph_ep14.json
+Episode 15 reward=0.000000 saved:output_data/ep15/final_graph_ep15.pt,output_data/ep15/final_graph_ep15.json
+Episode 16 reward=0.000000 saved:output_data/ep16/final_graph_ep16.pt,output_data/ep16/final_graph_ep16.json
+Episode 17 reward=0.000000 saved:output_data/ep17/final_graph_ep17.pt,output_data/ep17/final_graph_ep17.json
+Episode 18 reward=0.000000 saved:output_data/ep18/final_graph_ep18.pt,output_data/ep18/final_graph_ep18.json
+Episode 19 reward=-0.080806 saved:output_data/ep19/final_graph_ep19.pt,output_data/ep19/final_graph_ep19.json
+=== Evaluation completed: Sat Oct 18 17:35:49 2025 avg_reward=0.094699 ===
+Saved model weights: output_data/gnn_encoder.pt, output_data/predictor.pt
+Saved RL model: output_data/rl_model.zip
+=== Supervised training started: Sat Oct 18 17:41:23 2025 ===
+Epoch 1 avg_loss=6757.065486
+Epoch 2 avg_loss=6720.984262
+Epoch 3 avg_loss=6618.173903
+Epoch 4 avg_loss=6564.572097
+Epoch 5 avg_loss=6453.411997
+Epoch 6 avg_loss=6828.143818
+Epoch 7 avg_loss=6291.083308
+Epoch 8 avg_loss=6229.363281
+Epoch 9 avg_loss=6374.179537
+Epoch 10 avg_loss=6303.273982

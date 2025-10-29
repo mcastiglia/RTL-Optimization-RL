@@ -11,6 +11,10 @@ from torch_geometric.nn import GCNConv, global_mean_pool
 from torch_geometric.loader import DataLoader
 from torch_geometric.utils import degree, dense_to_sparse
 from stable_baselines3.common.policies import ActorCriticPolicy
+import os
+import json
+import time
+import matplotlib
 
 class GCNEncoder(nn.Module):
     def __init__(self, in_channels=4, hidden_dim=256, out_dim=768, dropout=0.1):
@@ -47,6 +51,12 @@ class GraphPolicy(ActorCriticPolicy):
 
     def forward(self, obs):
         # obs shape: (batch, n*4 + n*n)
+        # Stable-Baselines3 expects forward to return (actions, values, log_probs)
+        # Ensure obs is a torch tensor on the right device
+        if not isinstance(obs, torch.Tensor):
+            obs = torch.as_tensor(obs, dtype=torch.float32)
+        obs = obs.to(self.device)
+
         batch_size = obs.shape[0]
         embeddings = []
         for i in range(batch_size):
@@ -54,13 +64,21 @@ class GraphPolicy(ActorCriticPolicy):
             adj_flat = obs[i, self.n * 4:].view(self.n, self.n)
             edge_index = dense_to_sparse(adj_flat)[0]
             data = Data(x=x, edge_index=edge_index)
-            data = data.to(self.device)   # you need to store device on the policy (ActorCriticPolicy provides device)
-            graph_emb = self.gnn(data)
+            data = data.to(self.device)
+            graph_emb = self.gnn(data)            # graph_emb shape: [1, out_dim]
+            graph_emb = graph_emb.squeeze(0)     # -> [out_dim]
             embeddings.append(graph_emb)
-        graph_emb = torch.stack(embeddings)
-        action_logits = self.policy_net(graph_emb)
-        value = self.value_net(graph_emb)
-        return action_logits, value
+
+        graph_emb = torch.stack(embeddings)      # [batch, out_dim]
+        action_logits = self.policy_net(graph_emb)  # [batch, action_dim]
+        value = self.value_net(graph_emb).squeeze(-1)   # [batch]
+
+        # Build action distribution and sample / pick deterministically
+        dist = torch.distributions.Categorical(logits=action_logits)
+        actions = dist.sample()
+        log_probs = dist.log_prob(actions)
+
+        return actions, value, log_probs
 
 class AdderEnv(gym.Env):
     def __init__(self):
@@ -127,9 +145,17 @@ predictor = predictor.to(device)
 optimizer = torch.optim.Adam(list(model.parameters()) + list(predictor.parameters()), lr=2e-5)
 
 # Training loop
+# Ensure output directory exists for saving logs and graphs
+os.makedirs('output_data', exist_ok=True)
+log_path = os.path.join('output_data', 'training_log.txt')
+with open(log_path, 'a') as f:
+    f.write(f"=== Supervised training started: {time.asctime()} ===\n")
+
 for epoch in range(10):
     model.train()
     predictor.train()
+    epoch_loss = 0.0
+    batch_count = 0
     for batch in train_loader:
         batch = batch.to(device)           # if using device
         batch.y = batch.y.float()          # ensure float
@@ -139,11 +165,15 @@ for epoch in range(10):
         optimizer.zero_grad()
         embedding = model(batch)
         out = predictor(embedding)
-        print('embedding', embedding.shape, 'out', out.shape, 'batch.y', batch.y.shape)
         loss = F.mse_loss(out, batch.y)
         loss.backward()
         optimizer.step()
-    print(f"Epoch {epoch+1} completed")
+        epoch_loss += loss.item()
+        batch_count += 1
+    avg_loss = epoch_loss / batch_count if batch_count else 0.0
+    with open(log_path, 'a') as f:
+        f.write(f"Epoch {epoch+1} avg_loss={avg_loss:.6f}\n")
+    print(f"Epoch {epoch+1} completed (avg_loss={avg_loss:.6f})")
 
 # Now use the trained predictor in RL
 class AdderEnv(gym.Env):
@@ -184,8 +214,16 @@ class AdderEnv(gym.Env):
         self.current_graph.x = torch.stack([bit_positions, fan_in, fan_out, delay_levels], dim=1)
 
     def compute_cost(self, flow_type='fast'):
-        real_area = get_real_area_power(self.current_graph, flow_type)
-        return real_area 
+        # Use predictor to estimate area (predictor expects graph_model embeddings)
+        self.graph_model.eval()
+        self.predictor.eval()
+        data = self.current_graph
+        # move data (x, edge_index) to device and create a Batch if needed
+        data = data.to(next(self.graph_model.parameters()).device)
+        with torch.no_grad():
+            emb = self.graph_model(data)           # returns [1, embed_dim] or [batch, embed_dim]
+            pred_area = self.predictor(emb).item()
+        return pred_area 
 
     def step(self, action):
         # Decode action: add_remove = action // (n*n), i = (action % (n*n)) // n, j = action % n
@@ -236,7 +274,7 @@ rl_model.learn(total_timesteps=10000)
 # Evaluation
 total_reward = 0
 num_episodes = 20
-for _ in range(num_episodes):
+for episode_idx in range(num_episodes):
     obs = env.reset()
     done = False
     episode_reward = 0
@@ -245,4 +283,71 @@ for _ in range(num_episodes):
         obs, reward, done, info = env.step(action)
         episode_reward += reward
     total_reward += episode_reward
-print(f"Average reward: {total_reward / num_episodes}")
+    # after each episode finishes, save the final graph
+    # Create per-episode directory
+    ep_dir = os.path.join('output_data', f'ep{episode_idx}')
+    os.makedirs(ep_dir, exist_ok=True)
+    graph_pt = os.path.join(ep_dir, f"final_graph_ep{episode_idx}.pt")
+    graph_json = os.path.join(ep_dir, f"final_graph_ep{episode_idx}.json")
+    torch.save(env.current_graph, graph_pt)
+    data = {
+        "edge_index": env.current_graph.edge_index.tolist(),
+        "x": env.current_graph.x.tolist()
+    }
+    with open(graph_json, 'w') as f:
+        json.dump(data, f)
+    with open(log_path, 'a') as f:
+        f.write(f"Episode {episode_idx} reward={episode_reward:.6f} saved:{graph_pt},{graph_json}\n")
+
+avg_reward = total_reward / num_episodes
+with open(log_path, 'a') as f:
+    f.write(f"=== Evaluation completed: {time.asctime()} avg_reward={avg_reward:.6f} ===\n")
+print(f"Average reward: {avg_reward}")
+
+# Save trained models
+model_path = os.path.join('output_data', 'gnn_encoder.pt')
+predictor_path = os.path.join('output_data', 'predictor.pt')
+torch.save(model.state_dict(), model_path)
+torch.save(predictor.state_dict(), predictor_path)
+with open(log_path, 'a') as f:
+    f.write(f"Saved model weights: {model_path}, {predictor_path}\n")
+
+# Save RL agent (Stable-Baselines3) if available
+try:
+    rl_model_path = os.path.join('output_data', 'rl_model.zip')
+    rl_model.save(rl_model_path)
+    with open(log_path, 'a') as f:
+        f.write(f"Saved RL model: {rl_model_path}\n")
+except Exception as e:
+    with open(log_path, 'a') as f:
+        f.write(f"Could not save RL model: {e}\n")
+
+# Export final graphs to PNG using networkx + matplotlib
+try:
+    import networkx as nx
+    import matplotlib.pyplot as plt
+    for episode_idx in range(num_episodes):
+        json_path = os.path.join('output_data', f'ep{episode_idx}', f"final_graph_ep{episode_idx}.json")
+        try:
+            with open(json_path, 'r') as jf:
+                gjson = json.load(jf)
+        except Exception:
+            # JSON not available, skip
+            continue
+        edge_idx = gjson.get('edge_index', [])
+        num_nodes = len(gjson.get('x', []))
+        G = nx.DiGraph()
+        G.add_nodes_from(range(num_nodes))
+        if edge_idx and len(edge_idx) == 2:
+            G.add_edges_from(list(zip(edge_idx[0], edge_idx[1])))
+        plt.figure(figsize=(6, 6))
+        pos = nx.spring_layout(G)
+        nx.draw(G, pos, with_labels=True, node_size=300)
+        png_path = os.path.join('output_data', f'ep{episode_idx}', f"final_graph_ep{episode_idx}.png")
+        plt.savefig(png_path)
+        plt.close()
+        with open(log_path, 'a') as f:
+            f.write(f"Saved graph image: {png_path}\n")
+except Exception as e:
+    with open(log_path, 'a') as f:
+        f.write(f"Failed to export graph images: {e}\n")

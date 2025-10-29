@@ -167,16 +167,16 @@ def generate_brent_kung_graph(n_bits):
     data = Data(x=x, edge_index=edge_index)
     return data
 
-def get_real_area_power(graph):
-    """
-    Placeholder function to get real area and power estimates using synthesis tools.
-    For now, returns the analytical estimates.
-    Later, this will call a synthesis engine (e.g., via subprocess or API).
-    """
-    # TODO: Integrate with synthesis tool, e.g., call external script
-    # For example: result = subprocess.run(['synthesis_tool', graph_to_rtl(graph)], capture_output=True)
-    # Parse result for area and power
-    return compute_area(graph), compute_power(graph)
+# def get_real_area_power(graph):
+#     """
+#     Placeholder function to get real area and power estimates using synthesis tools.
+#     For now, returns the analytical estimates.
+#     Later, this will call a synthesis engine (e.g., via subprocess or API).
+#     """
+#     # TODO: Integrate with synthesis tool, e.g., call external script
+#     # For example: result = subprocess.run(['synthesis_tool', graph_to_rtl(graph)], capture_output=True)
+#     # Parse result for area and power
+#     return compute_area(graph), compute_power(graph)
 
 if __name__ == '__main__':
     n = 4  # Example for 4-bit adder
@@ -196,7 +196,7 @@ def get_real_area_power(graph, flow_type='fast'):
     tcl_script = 'full_flow.tcl' if flow_type == 'full' else 'fast_flow.tcl'
     base_dir = os.environ.get('BASE_DIR', '.')
     openroad_dir = f"{base_dir}/OpenROAD"
-    
+
     # Assume the TCL script is designed to run synthesis and output area/power
     # For now, this is a placeholder - you need to implement the actual synthesis call
     # The TCL script should be modified to accept design parameters or use environment variables
@@ -221,7 +221,7 @@ def get_real_area_power(graph, flow_type='fast'):
     
     if area is None and power is None:
         # Fallback to analytical computation
-        print(f"Warning: Could not parse area/power from synthesis output, using analytical values")
+        #print(f"Warning: Could not parse area/power from synthesis output, using analytical values")
         area, power = compute_area(graph), compute_power(graph)
     
     return area
