@@ -68,7 +68,7 @@ class PrefixRL_DQN(nn.Module):
 
         self._init_weights(negative_slope)
 
-    def _init_weights(self, negative_slope: float):
+    def _init_weights(self, negative_slope: float) -> None:
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, a=negative_slope, mode="fan_out", nonlinearity="leaky_relu")
@@ -102,7 +102,7 @@ def build_features(
     return torch.from_numpy(arr).to(device=device, dtype=dtype)
 
 # Normalize the features to [0,1] (Adapted from PrefixRL Section C)
-def normalize_features(arr, denom: Optional[float], eps: float = 1e-8, clip: bool = True):
+def normalize_features(arr, denom: Optional[float], eps: float = 1e-8, clip: bool = True) -> np.ndarray:
     arr = np.asarray(arr, dtype=np.float32)
     if denom is None:
         m = float(arr.max()) if arr.size > 0 else 1.0
@@ -199,7 +199,7 @@ def scalarize_q(qmaps: torch.Tensor, w_area: float = 0.5, w_delay: float = 0.5, 
 
 
 # Argmax the scores to get the best action for adding and deleting nodes (Adapted from PrefixRL Section B)
-def argmax_action(qmaps: torch.Tensor, w_area: float = 1.0, w_delay: float = 1.0):
+def argmax_action(qmaps: torch.Tensor, w_area: float = 1.0, w_delay: float = 1.0) -> Tuple[bool, torch.Tensor]:
     # [B,2,N,N] tensor represented the scalarized Q-values for adding and deleting nodes
     scores = scalarize_q(qmaps, w_area, w_delay)  # (B,2,N,N)
     
@@ -228,7 +228,7 @@ def get_best_action(qmaps: torch.Tensor, w_area: float = 1.0, w_delay: float = 1
     
     return action_coords, is_add
 
-def get_random_action(qmaps: torch.Tensor, w_area: float = 1.0, w_delay: float = 1.0):
+def get_random_action(qmaps: torch.Tensor) -> Tuple[Tuple[int, int], bool]:
     batch_size = qmaps.size(0)
     N = qmaps.size(2)
     num_actions = 2 * N * N  # 2 for add/del, N*N for positions
@@ -256,10 +256,10 @@ class ReplayBuffer:
         self.buf = []
         self.pos = 0
 
-    def __len__(self): return len(self.buf)
+    def __len__(self) -> int: return len(self.buf)
 
     # Add a tuple of the experience to the buffer
-    def push(self, s, a_type, i, j, r, s_next, done):
+    def push(self, s, a_type, i, j, r, s_next, done) -> None:
         tup = (s, int(a_type), int(i), int(j), float(r), s_next, bool(done))
         if len(self.buf) < self.capacity:
             self.buf.append(tup)
@@ -268,7 +268,7 @@ class ReplayBuffer:
         self.pos = (self.pos + 1) % self.capacity
 
     # Sample a batch of experiences from the buffer, without replacement
-    def sample(self, batch_size: int):
+    def sample(self, batch_size: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         batch = random.sample(self.buf, batch_size)
         s, a, i, j, r, s2, d = zip(*batch)
         s  = torch.stack(s)        # (B,4,N,N)
@@ -297,7 +297,7 @@ class TrainingConfig:
     c_delay: float = 10.0
     
 # TODO: This was also vibe coded. There is scaffold code/placeholders where environment actions need to be taken
-def train(cfg: TrainingConfig, device=None):
+def train(cfg: TrainingConfig, device=None) -> Tuple[PrefixRL_DQN, PrefixRL_DQN]:
     device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     # TODO: PrefixRL uses a double DQN architecture, where there is an online network (net) and an offline network (tgt)
