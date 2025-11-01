@@ -227,17 +227,21 @@ def get_best_action(qmaps: torch.Tensor, w_area: float = 1.0, w_delay: float = 1
     
     return action_coords, is_add
 
-# TODO: The .random() function does not exist for how I'm using it. Needs to be fixed
 def get_random_action(qmaps: torch.Tensor, w_area: float = 1.0, w_delay: float = 1.0):
     batch_size = qmaps.size(0)
     N = qmaps.size(2)
-    random_per_batch, flat_idx = qmaps.view(batch_size, -1).random(dim=1)
+    num_actions = 2 * N * N  # 2 for add/del, N*N for positions
     
-    i = torch.div(flat_idx, N, rounding_mode='floor')
-    j = flat_idx % N
+    # Sample random flat index uniformly over all possible actions
+    flat_idx = torch.randint(0, num_actions, (batch_size,), device=qmaps.device)
     
-    batch = torch.arange(batch_size, device=best_vals.device)
-    is_add = best_is_add[batch, i, j]
+    # Decode the action: action_type (0=add, 1=del), i, j
+    action_type = flat_idx // (N * N)
+    pos_idx = flat_idx % (N * N)
+    i = pos_idx // N
+    j = pos_idx % N
+    
+    is_add = (action_type == 0)
     action_coords = torch.stack([i, j], dim=1)
     
     return action_coords, is_add
