@@ -97,7 +97,7 @@ def init_graph_brent_kung(n: int):
     levellist = update_level_map(nodelist, levellist)
     level = levellist.max()
     minlist = copy.deepcopy(nodelist)
-    for i in range(INPUT_BIT):
+    for i in range(n):
         minlist[i, i] = 0
         minlist[i, 0] = 0
     size = nodelist.sum() - n
