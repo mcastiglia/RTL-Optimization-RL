@@ -290,6 +290,7 @@ def get_best_action(qmaps: torch.Tensor, w_area, w_delay) -> Tuple[Tuple[int, in
 
 # Sample an epsilon value for epsilon-greedy exploration
 # Adapted from Multi-objective Reinforcement Learning with Adaptive Pareto Reset for Prefix Adder Design, page 11
+# TODO: epsilon should anneal to zero over time
 def sample_epsilon():
     i = torch.randint(0, 1024, (1,)).item()
     eps = 0.4 ** (1 + 7 * i / 1023)
@@ -361,8 +362,10 @@ class ReplayBuffer:
             for b in range(global_vars.batch_size):
                 buf_element = BufferElement(S1_feats[b], action[b], action_idx[b], reward[b], S2_feats[b], done)
                 self.buf.append(buf_element)
+        # Else, buffer is full, so we need to overwrite the oldest experience
         else:
-            raise ValueError("Buffer is full")
+            for b in range(global_vars.batch_size):
+                self.buf[self.pos] = BufferElement(S1_feats[b], action[b], action_idx[b], reward[b], S2_feats[b], done)
 
         self.pos = (self.pos + global_vars.batch_size) % self.capacity
 
