@@ -129,12 +129,12 @@ class Graph_State(object):
         next_state.update_fanoutlist()
         fanout = next_state.fanoutlist.max()
     
-        global_vars.flog.write("{},{:.2f},{:.2f},{:.2f},{:d},{:d},{:d},{:d},{:.2f}\n".format(
+        global_vars.synthesis_log.write("{},{:.2f},{:.2f},{:.2f},{:d},{:d},{:d},{:d},{:.2f}\n".format(
                 next_state.verilog_file_name.split(".")[0], 
                 next_state.delay, next_state.area, next_state.power, 
                 int(next_state.level), int(next_state.size), fanout,
                 global_vars.cache_hit,time.time() - start_time))
-        global_vars.flog.flush()
+        global_vars.synthesis_log.flush()
         
         return next_state
     

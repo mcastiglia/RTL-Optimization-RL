@@ -1,5 +1,6 @@
 ### Global Variable Declarations ###
-flog = ""
+synthesis_log = ""
+training_log = ""
 start_time = {}
 initial_adder_type = None
 result_cache = {}

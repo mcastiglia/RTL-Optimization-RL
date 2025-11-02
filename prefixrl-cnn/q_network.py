@@ -10,6 +10,7 @@ import global_vars
 from init_states import init_graph
 from environment import evaluate_next_state
 from tqdm import tqdm
+import time
     
 # Residual block for the CNN (Adapted from PrefixRL Figure 2)
 class ResidualBlock(nn.Module):
@@ -530,8 +531,8 @@ def train(cfg: TrainingConfig, device=None):
                 Q_S2 = tgt(replay_S2_feats)
                 q_S2_masked = build_and_apply_action_masks_batch(Q_S2, replay_S2_feats, global_vars.n)
                 action_coords, is_add, replay_q_max_per_batch = get_best_action(q_S2_masked, w_area, w_delay)
-                target = replay_reward + (1 - replay_done) * cfg.gamma * replay_q_max_per_batch
-
+                target = replay_reward + cfg.gamma * replay_q_max_per_batch
+                
             loss = F.smooth_l1_loss(replay_q_sa, target)
 
             opt.zero_grad()
@@ -547,6 +548,21 @@ def train(cfg: TrainingConfig, device=None):
                 
             current_states = next_states
             current_state_metrics = next_state_metrics
+            
+            training_log_entry = ""
+            for b in range(B):
+                training_log_entry += "{},{},{},{},{},{},{},{}\n".format(
+                    time.time(),
+                    episode,
+                    step,
+                    replay_reward[b].item(),
+                    target[b].item(),
+                    replay_q_sa[b].item(),
+                    replay_q_max_per_batch[b].item(),
+                    loss.item()
+                )
+            global_vars.training_log.write(training_log_entry)
+            global_vars.training_log.flush()
 
     return net, tgt
     

@@ -7,7 +7,7 @@ from q_network import PrefixRL_DQN, build_features, build_action_masks, apply_ac
 from plotting_utils import print_section_header, print_title_banner, GRAPH_TO_GATES_TITLE, SEPARATOR, print_info_formatted
 
 def parse_arguments():
-    global args,flog
+    global args
     
     parser = argparse.ArgumentParser(description='Prefix graph to adder netlist conversion tool')
     parser.add_argument('-n','--input_bitwidth', type = int, required=True, help="Input bitwidth for the adder")
@@ -55,9 +55,12 @@ def parse_arguments():
         os.mkdir(os.path.join(args.output_dir, "adder_training_log"))
     if not os.path.exists(os.path.join(args.output_dir, "adder_training_log/adder_{}b".format(args.input_bitwidth))):
         os.mkdir(os.path.join(args.output_dir, "adder_training_log/adder_{}b".format(args.input_bitwidth)))
-    global_vars.flog = open(os.path.join(args.output_dir, "adder_training_log/adder_{}b/adder_{}b_openroad_type{}_{}.csv".format(args.input_bitwidth, 
+    global_vars.synthesis_log = open(os.path.join(args.output_dir, "adder_training_log/adder_{}b/adder_{}b_openroad_type{}_{}.csv".format(args.input_bitwidth, 
         args.input_bitwidth, args.adder_type, strftime)), "w")
-    global_vars.flog.write("verilog_file_name,delay,area,power,level,size,fanout,cache_hit,time\n")
+    global_vars.training_log = open(os.path.join(args.output_dir, "adder_training_log/adder_{}b/adder_{}b_training_{}.csv".format(args.input_bitwidth, 
+        args.input_bitwidth, strftime)), "w")
+    global_vars.synthesis_log.write("verilog_file_name,delay,area,power,level,size,fanout,cache_hit,time\n")
+    global_vars.training_log.write("timestamp,episode,step,reward,bellman_target,expected_q,expected_q_next,loss\n")
     global_vars.start_time = time.time()
     
     return args
