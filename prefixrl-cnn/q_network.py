@@ -392,6 +392,7 @@ class TrainingConfig:
     target_sync_every: int = 60              # paper
     c_area: float = 1e-3                        # paper’s scaling
     c_delay: float = 10.0                       # paper’s scaling
+    lr_decay: float = 0.99                    # exponential decay factor for learning rate
     
     
 def train(cfg: TrainingConfig, device=None) -> Tuple[PrefixRL_DQN, PrefixRL_DQN]:
@@ -406,6 +407,7 @@ def train(cfg: TrainingConfig, device=None) -> Tuple[PrefixRL_DQN, PrefixRL_DQN]
     tgt.load_state_dict(net.state_dict()); tgt.eval()
 
     opt = torch.optim.Adam(net.parameters(), lr=cfg.lr)
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(opt, gamma=cfg.lr_decay)
     buf = ReplayBuffer(400000) # Initialize replay buffer with 4e5 elements
 
     grad_steps = 0
@@ -549,6 +551,8 @@ def train(cfg: TrainingConfig, device=None) -> Tuple[PrefixRL_DQN, PrefixRL_DQN]
                 
             current_states = next_states
             current_state_metrics = next_state_metrics
+
+        scheduler.step()
 
     return net, tgt
     
