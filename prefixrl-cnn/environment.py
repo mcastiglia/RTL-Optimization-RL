@@ -9,7 +9,10 @@ import shutil
 import torch
 from typing import List, Tuple
 import time
+from multiprocessing import Pool, Lock
+from typing import List
 
+_lock = Lock()
 step_num = 0
 
 class Graph_State(object):
@@ -363,17 +366,47 @@ class Graph_State(object):
 
         return area, wslack, power, note
     
+
+def evaluate_job(args):
+  b, current_states, best_action, action_x, action_y = args
+  
+  print(f"[Batch {b}] Starting evaluation")
+  
+  action_type = best_action[b].item()
+  x = action_x[b].item()
+  y = action_y[b].item()
+  
+  next_state = current_states[b].evaluate_next_state(action_type, x, y)
+  
+  with _lock:
+    print(f"[Batch {b}] Finished evaluation: {next_state.verilog_file_name}")
+    global_vars.flog.write(f"Finished Job {b}: {next_state.verilog_file_name}\n")
+    global_vars.flog.flush()
+  
+  return next_state
     
 # Evaluate the next state metrics for each batch element
 # TODO: should be performed in parallel instead of sequentially
-def evaluate_next_state(current_states: List[Graph_State], best_action: torch.Tensor, action_x: torch.Tensor, action_y: torch.Tensor, batch_size: int):
-    next_states: List[Graph_State] = []
-    for b in range(batch_size):
-        action_type = best_action[b].item()
-        x = action_x[b].item()
-        y = action_y[b].item()
+#def evaluate_next_state(current_states: List[Graph_State], best_action: torch.Tensor, action_x: torch.Tensor, action_y: torch.Tensor, batch_size: int):
+    #next_states: List[Graph_State] = []
+    #for b in range(batch_size):
+        #action_type = best_action[b].item()
+        #x = action_x[b].item()
+        #y = action_y[b].item()
         
-        next_state = current_states[b].evaluate_next_state(action_type, x, y)
-        next_states.append(next_state)
+        #next_state = current_states[b].evaluate_next_state(action_type, x, y)
+        #next_states.append(next_state)
         
-    return next_states
+    #return next_states
+    
+def evaluate_next_state(current_states: List["Graph_State"], best_action: torch.Tensor, action_x: torch.Tensor, action_y: torch.Tensor, batch_size: int):
+
+  args = [(b, current_states, best_action, action_x, action_y) for b in range (batch_size)]
+
+  num_workers = max(1, min(os.cpu_count() - 1, batch_size))
+  print(f"Starting evaluation with {num_workers} worker(s) for {batch_size} batch elements...")
+  
+  with Pool(processes=num_workers) as pool:
+    next_states = pool.map(evaluate_job, args)
+
+  return next_states
