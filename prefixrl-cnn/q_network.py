@@ -230,7 +230,7 @@ def apply_action_masks(qmaps: torch.Tensor, masks: Dict[str, torch.Tensor], fill
 # Build and apply action masks to the Q-maps for a batch of states
 def build_and_apply_action_masks_batch(qmaps: torch.Tensor, feats: torch.Tensor, N: int) -> torch.Tensor:
     B = qmaps.size(0)
-    mask_list = [build_action_masks(N, feats[b,0], feats[b,0]) for b in range(B)]
+    mask_list = [build_action_masks(N, feats[b,0].cpu().numpy(), feats[b,1].cpu().numpy()) for b in range(B)]
 
     action_masks = {
         "all": torch.stack([mask_list[b]["all"] for b in range(B)]),
@@ -304,22 +304,32 @@ def get_random_action(qmaps: torch.Tensor, w_area, w_delay, fill_value: float = 
     
     scores_mask = scores > fill_value
 
-    # Create and select the max value from a random tensor, masking out invalid actions
-    rand_tensor = torch.rand(B, C, N, M, device=scores.device)
-    rand_masked = rand_tensor.masked_fill(~scores_mask, -1.0)            # invalids can’t win
-    flat_idx = rand_masked.view(B, -1).argmax(dim=1)
+    # First randomly choose between add (channel 0) and delete (channel 1) with equal probability
+    # to ensure balanced exploration between add and delete actions
+    action_type_choice = torch.randint(0, 2, (B,), device=scores.device)  # 0 for add, 1 for delete
     
-    spatial_size = N * M
-    channel_idx = flat_idx // spatial_size
-    spatial_idx = flat_idx % spatial_size
+    # Then randomly select from valid actions in the chosen channel
+    action_coords = torch.zeros(B, 2, dtype=torch.long, device=scores.device)
+    is_add = torch.zeros(B, dtype=torch.bool, device=scores.device)
+    rand_per_batch = torch.zeros(B, device=scores.device)
     
-    i = spatial_idx // M
-    j = spatial_idx % M
-    
-    is_add = channel_idx == 0
-    
-    action_coords = torch.stack([i, j], dim=1)
-    rand_per_batch = scores[torch.arange(B, device=scores.device), channel_idx, i, j]
+    for b in range(B):
+        channel_idx = action_type_choice[b]
+        channel_mask = scores_mask[b, channel_idx]  # (N, M)
+        
+        # If chosen channel has no valid actions, try the other channel
+        if not channel_mask.any():
+            channel_idx = 1 - channel_idx
+            channel_mask = scores_mask[b, channel_idx]
+        
+        # Select a random valid action from the channel
+        if channel_mask.any():
+            valid_indices = channel_mask.nonzero(as_tuple=False)
+            rand_idx = torch.randint(0, len(valid_indices), (1,), device=scores.device)
+            i, j = valid_indices[rand_idx][0]
+            action_coords[b] = torch.tensor([i, j], device=scores.device)
+            is_add[b] = channel_idx == 0
+            rand_per_batch[b] = scores[b, channel_idx, i, j]
     
     return action_coords, is_add, rand_per_batch
 
@@ -517,7 +527,7 @@ def train(cfg: TrainingConfig, device=None):
                 Q_S2 = tgt(replay_S2_feats)
                 q_S2_masked = build_and_apply_action_masks_batch(Q_S2, replay_S2_feats, global_vars.n)
                 action_coords, is_add, replay_q_max_per_batch = get_best_action(q_S2_masked, w_area, w_delay)
-                target = replay_reward + cfg.gamma * replay_q_max_per_batch
+                target = replay_reward + (1 - replay_done) * cfg.gamma * replay_q_max_per_batch
 
             loss = F.smooth_l1_loss(replay_q_sa, target)
 
