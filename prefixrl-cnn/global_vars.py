@@ -59,5 +59,6 @@ set synth_verilog "{}"
 set sdc_file "{}"
 set die_area {{0 0 80 80}}
 set core_area {{0 0 80 80}}
+set batch_index "{}"
 source -echo "fast_flow.tcl"
 '''
