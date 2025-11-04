@@ -55,7 +55,7 @@ global_placement -routability_driven -density $global_place_density \
 place_pins -hor_layers $io_placer_hor_layer -ver_layers $io_placer_ver_layer
 
 # checkpoint
-set global_place_db [make_result_file ${design}_${platform}_global_place.db]
+set global_place_db [make_result_file ${design}_${platform}_${batch_index}_global_place.db]
 write_db $global_place_db
 
 ###############################################################

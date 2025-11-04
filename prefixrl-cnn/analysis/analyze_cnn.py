@@ -69,8 +69,55 @@ def plot_synthesis_results(csv_file_path, save_plots=True, output_dir=None):
         
         plt.show()
         
+        # Create Area vs Delay trade-off plot
+        fig2, ax = plt.subplots(1, 1, figsize=(10, 8))
+        
+        # Scatter plot with design index as color
+        scatter = ax.scatter(df['area'], df['delay'], c=range(len(df)), 
+                           cmap='viridis', s=60, alpha=0.7, edgecolors='black', linewidth=0.5)
+        
+        # Add colorbar to show design progression
+        cbar = plt.colorbar(scatter, ax=ax)
+        cbar.set_label('Design Index', rotation=270, labelpad=15)
+        
+        # Add trend line if there are enough points
+        if len(df) > 1:
+            z = np.polyfit(df['area'], df['delay'], 1)
+            p = np.poly1d(z)
+            ax.plot(df['area'], p(df['area']), "r--", alpha=0.8, linewidth=2, 
+                   label=f'Trend: slope={z[0]:.2e}')
+            ax.legend()
+        
+        # Annotate best points
+        best_area_idx = df['area'].idxmin()
+        best_delay_idx = df['delay'].idxmin()
+        
+        ax.annotate(f'Best Area\n(Design {best_area_idx})', 
+                   xy=(df.loc[best_area_idx, 'area'], df.loc[best_area_idx, 'delay']),
+                   xytext=(10, 10), textcoords='offset points',
+                   bbox=dict(boxstyle='round,pad=0.3', facecolor='lightblue', alpha=0.7),
+                   arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0'))
+        
+        ax.annotate(f'Best Delay\n(Design {best_delay_idx})', 
+                   xy=(df.loc[best_delay_idx, 'area'], df.loc[best_delay_idx, 'delay']),
+                   xytext=(10, -30), textcoords='offset points',
+                   bbox=dict(boxstyle='round,pad=0.3', facecolor='lightgreen', alpha=0.7),
+                   arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0'))
+        
+        ax.set_title(f'Area vs Delay Trade-off: {base_name}')
+        ax.set_xlabel('Area')
+        ax.set_ylabel('Delay')
+        ax.grid(True, alpha=0.3)
+        
+        if save_plots:
+            output_path = os.path.join(output_dir, f'{base_name}_area_vs_delay.png')
+            plt.savefig(output_path, dpi=300, bbox_inches='tight')
+            print(f"Area vs Delay plot saved to: {output_path}")
+        
+        plt.show()
+        
         # Create a summary statistics plot
-        fig2, ax = plt.subplots(1, 1, figsize=(12, 8))
+        fig3, ax = plt.subplots(1, 1, figsize=(12, 8))
         
         # Multi-metric comparison (normalized)
         metrics = ['area', 'power', 'delay', 'fanout']
@@ -109,6 +156,48 @@ def plot_synthesis_results(csv_file_path, save_plots=True, output_dir=None):
             print(f"  Min:  {df[metric].min():.4f}")
             print(f"  Max:  {df[metric].max():.4f}")
             print()
+        
+        # Print area vs delay analysis
+        print("Area vs Delay Trade-off Analysis:")
+        print("=" * 35)
+        correlation = df['area'].corr(df['delay'])
+        print(f"Correlation coefficient: {correlation:.4f}")
+        
+        if abs(correlation) > 0.7:
+            correlation_strength = "Strong"
+        elif abs(correlation) > 0.3:
+            correlation_strength = "Moderate"
+        else:
+            correlation_strength = "Weak"
+        
+        correlation_direction = "positive" if correlation > 0 else "negative"
+        print(f"Correlation: {correlation_strength} {correlation_direction}")
+        
+        best_area_design = df.loc[df['area'].idxmin()]
+        best_delay_design = df.loc[df['delay'].idxmin()]
+        
+        print(f"\nBest Area Design (Index {df['area'].idxmin()}):")
+        print(f"  Area: {best_area_design['area']:.4f}, Delay: {best_area_design['delay']:.4f}")
+        print(f"Best Delay Design (Index {df['delay'].idxmin()}):")
+        print(f"  Area: {best_delay_design['area']:.4f}, Delay: {best_delay_design['delay']:.4f}")
+        
+        # Calculate Pareto efficiency
+        pareto_indices = []
+        for i in range(len(df)):
+            is_pareto = True
+            for j in range(len(df)):
+                if i != j:
+                    if (df.iloc[j]['area'] <= df.iloc[i]['area'] and 
+                        df.iloc[j]['delay'] <= df.iloc[i]['delay'] and
+                        (df.iloc[j]['area'] < df.iloc[i]['area'] or df.iloc[j]['delay'] < df.iloc[i]['delay'])):
+                        is_pareto = False
+                        break
+            if is_pareto:
+                pareto_indices.append(i)
+        
+        print(f"\nPareto-efficient designs (area-delay): {len(pareto_indices)} out of {len(df)}")
+        if pareto_indices:
+            print("Pareto-efficient design indices:", pareto_indices)
             
     except Exception as e:
         print(f"Error plotting synthesis results: {e}")

@@ -14,6 +14,7 @@ num_steps = 5000
 num_episodes = 100
 w_scalar = 0.5
 batch_size = 192
+disable_parallel_evaluation = False
 
 ### Verilog Cell Definitions ###
 BLACK_CELL = '''module BLACK (
@@ -60,6 +61,7 @@ set synth_verilog "{}"
 set sdc_file "{}"
 set die_area {{0 0 80 80}}
 set core_area {{0 0 80 80}}
+set batch_index "{}"
 source -echo "{}.tcl"
 '''
 flow_type = "fast_flow"

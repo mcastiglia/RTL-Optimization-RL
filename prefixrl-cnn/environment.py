@@ -115,7 +115,7 @@ class Graph_State(object):
                     prev_l = l
     
     # Get the next state from the action and coordinates (x, y)
-    def evaluate_next_state(self, action_type, x, y):
+    def evaluate_next_state(self, action_type, x, y, batch_idx: int):
         start_time = time.time()
         next_nodelist, next_minlist, next_levellist = self.modify_nodelist(not action_type, x, y)
         next_level = next_levellist.max()
@@ -126,7 +126,7 @@ class Graph_State(object):
         
         next_state.output_verilog()
         next_state.run_yosys()
-        delay, area, power = next_state.run_openroad()
+        delay, area, power = next_state.run_openroad(batch_idx)
 
         next_state.delay = delay
         next_state.area = area
@@ -147,10 +147,10 @@ class Graph_State(object):
   
     # Output the nodelist as ASCIIart to a file (Taken from ArithTreeRL)
     def output_feature_list(self, feature_name, feature_list):
-        verilog_mid_dir = os.path.join(global_vars.output_dir, "run_verilog_mid")
-        if not os.path.exists(verilog_mid_dir):
-            os.mkdir(verilog_mid_dir)
-        fdot_save = open(os.path.join(verilog_mid_dir, "adder_{}b_{}_{}_{}_{}.log".format(self.n, 
+        featurelist_dir = os.path.join(global_vars.output_dir, "graph_feature_lists")
+        if not os.path.exists(featurelist_dir):
+            os.mkdir(featurelist_dir)
+        fdot_save = open(os.path.join(featurelist_dir, "adder_{}b_{}_{}_{}_{}.log".format(self.n, 
                 int(self.levellist.max()), int(self.nodelist.sum()-self.n), feature_name,
                 self.hash_value)), 'w')
         for i in range(self.n):
@@ -166,10 +166,10 @@ class Graph_State(object):
             rep_int = self.get_represent_int()
             self.hash_value = hashlib.md5(str(rep_int).encode()).hexdigest()
         
-        verilog_mid_dir = os.path.join(global_vars.output_dir, "run_verilog_mid")
-        if not os.path.exists(verilog_mid_dir):
-            os.mkdir(verilog_mid_dir)
-        plot_title = os.path.join(verilog_mid_dir, "adder_{}b_{}_{}_graph_{}.png".format(self.n, 
+        graph_plots_dir = os.path.join(global_vars.output_dir, "graph_plots")
+        if not os.path.exists(graph_plots_dir):
+            os.mkdir(graph_plots_dir)
+        plot_title = os.path.join(graph_plots_dir, "adder_{}b_{}_{}_graph_{}.png".format(self.n, 
                 int(self.levellist.max()), int(self.nodelist.sum()-self.n),
                 self.hash_value))
         plt.clf()
@@ -202,17 +202,7 @@ class Graph_State(object):
         
         G.add_edges_from(edges)
         
-        angle = math.pi / 4
-        cos_angle = math.cos(angle)
-        sin_angle = -math.sin(angle)
-        scale = 2.0
-        def rotate_45(x, y):
-            x_rot = x * cos_angle - y * sin_angle
-            y_rot = x * sin_angle + y * cos_angle
-            return (x_rot * scale, y_rot * scale)
-        
         pos = {(r, c): (r,c) for r in range(self.n) for c in range(self.n)}
-        # pos = {(r, c): rotate_45(-c, -r) for r in range(self.n) for c in range(self.n)}
             
         nx.draw(
             G, 
@@ -351,7 +341,7 @@ class Graph_State(object):
             os.remove(src_file_path)
     
     # Run OpenROAD to perform place and route on the synthesized Verilog code (Taken from ArithTreeRL)
-    def run_openroad(self):
+    def run_openroad(self, batch_idx: int = 0):
 
         file_name_prefix = self.verilog_file_name.split(".")[0]
         
@@ -378,7 +368,7 @@ class Graph_State(object):
         fopen_sdc.close()
         fopen_tcl = open("{}adder_nangate45_{}.tcl".format(global_vars.openroad_path, file_name_prefix), "w")
         fopen_tcl.write(global_vars.openroad_tcl.format("adder_tmp_{}.v".format(file_name_prefix), 
-            "adder_nangate45_{}.sdc".format(file_name_prefix), global_vars.flow_type))
+            "adder_nangate45_{}.sdc".format(file_name_prefix), batch_idx, global_vars.flow_type))
         fopen_tcl.close()
         
         # Ensure openroad_path ends with '/' for consistent path handling
@@ -442,46 +432,50 @@ class Graph_State(object):
         return area, wslack, power, note
     
 
-# def evaluate_job(args):
-#   b, current_states, best_action, action_x, action_y = args
+def evaluate_job(args):
+  b, current_states, best_action, action_x, action_y = args
   
-#   print(f"[Batch {b}] Starting evaluation")
+  print(f"[Batch {b}] Starting evaluation")
   
-#   action_type = best_action[b].item()
-#   x = action_x[b].item()
-#   y = action_y[b].item()
+  action_type = best_action[b].item()
+  x = action_x[b].item()
+  y = action_y[b].item()
   
-#   next_state = current_states[b].evaluate_next_state(action_type, x, y)
+  next_state = current_states[b].evaluate_next_state(action_type, x, y, b)
   
-#   with _lock:
-#     print(f"[Batch {b}] Finished evaluation: {next_state.verilog_file_name}")
-#     global_vars.flog.write(f"Finished Job {b}: {next_state.verilog_file_name}\n")
-#     global_vars.flog.flush()
+  with _lock:
+    print(f"[Batch {b}] Finished evaluation: {next_state.verilog_file_name}")
   
 #   return next_state
     
 # Evaluate the next state metrics for each batch element
 # TODO: should be performed in parallel instead of sequentially
-def evaluate_next_state(current_states: List[Graph_State], best_action: torch.Tensor, action_x: torch.Tensor, action_y: torch.Tensor, batch_size: int):
+def evaluate_next_state_sequential(current_states: List[Graph_State], best_action: torch.Tensor, action_x: torch.Tensor, action_y: torch.Tensor, batch_size: int):
     next_states: List[Graph_State] = []
     for b in range(batch_size):
         action_type = best_action[b].item()
         x = action_x[b].item()
         y = action_y[b].item()
         
-        next_state = current_states[b].evaluate_next_state(action_type, x, y)
+        next_state = current_states[b].evaluate_next_state(action_type, x, y, b)
         next_states.append(next_state)
         
     return next_states
     
-# def evaluate_next_state(current_states: List["Graph_State"], best_action: torch.Tensor, action_x: torch.Tensor, action_y: torch.Tensor, batch_size: int):
+def evaluate_next_state_parallel(current_states: List["Graph_State"], best_action: torch.Tensor, action_x: torch.Tensor, action_y: torch.Tensor, batch_size: int):
 
-#   args = [(b, current_states, best_action, action_x, action_y) for b in range (batch_size)]
+  args = [(b, current_states, best_action, action_x, action_y) for b in range (batch_size)]
 
-#   num_workers = max(1, min(os.cpu_count() - 1, batch_size))
-#   print(f"Starting evaluation with {num_workers} worker(s) for {batch_size} batch elements...")
+  num_workers = max(1, min(os.cpu_count() - 1, batch_size))
+  print(f"Starting evaluation with {num_workers} worker(s) for {batch_size} batch elements...")
   
-#   with Pool(processes=num_workers) as pool:
-#     next_states = pool.map(evaluate_job, args)
+  with Pool(processes=num_workers) as pool:
+    next_states = pool.map(evaluate_job, args)
 
-#   return next_states
+  return next_states
+
+def evaluate_next_state_batch(current_states: List["Graph_State"], best_action: torch.Tensor, action_x: torch.Tensor, action_y: torch.Tensor, batch_size: int):
+    if global_vars.disable_parallel_evaluation or batch_size == 1:
+        return evaluate_next_state_sequential(current_states, best_action, action_x, action_y, batch_size)
+    else:
+        return evaluate_next_state_parallel(current_states, best_action, action_x, action_y, batch_size)

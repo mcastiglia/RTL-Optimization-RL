@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import global_vars
 from init_states import init_graph
-from environment import evaluate_next_state
+from environment import evaluate_next_state_batch
 from tqdm import tqdm
 import time
     
@@ -358,8 +358,6 @@ class ReplayBuffer:
 
     # Add experience to the buffer
     def push(self, S1_feats, action, action_idx, reward, S2_feats, done) -> None:
-        print("Current length of buffer: ", len(self.buf))
-        print("Capacity of buffer: ", self.capacity)
         
         if (len(self.buf) + global_vars.batch_size) <= self.capacity:
             for b in range(global_vars.batch_size):
@@ -371,14 +369,16 @@ class ReplayBuffer:
                 self.buf[self.pos] = BufferElement(S1_feats[b], action[b], action_idx[b], reward[b], S2_feats[b], done)
 
         self.pos = (self.pos + global_vars.batch_size) % self.capacity
+        # print("Current length of buffer: ", len(self.buf))
+        # print("Capacity of buffer: ", self.capacity)
 
     # Sample a batch of experiences from the buffer
     def sample(self) -> List[BufferElement]:
         return random.sample(self.buf, global_vars.batch_size)
     
 def compute_reward(current_metrics, next_metrics, w_area, w_delay, c_area: float = 1e-3, c_delay: float = 10.0) -> float:
-    print("current_metrics: ", current_metrics)
-    print("next_metrics: ", next_metrics)
+    # print("current_metrics: ", current_metrics)
+    # print("next_metrics: ", next_metrics)
     
     diff_area = current_metrics[:,1] - next_metrics[:,1]
     diff_delay = current_metrics[:,0] - next_metrics[:,0]
@@ -414,8 +414,8 @@ def train(cfg: TrainingConfig, device=None) -> Tuple[PrefixRL_DQN, PrefixRL_DQN]
     grad_steps = 0
 
     # Weight scalar for area and delay
-    w_area = global_vars.w_scalar
-    w_delay = 1 - global_vars.w_scalar
+    w_area = 1 - global_vars.w_scalar
+    w_delay = global_vars.w_scalar
     B = global_vars.batch_size
     
     # Main training loop
@@ -424,7 +424,10 @@ def train(cfg: TrainingConfig, device=None) -> Tuple[PrefixRL_DQN, PrefixRL_DQN]
         # Initial environment state at beginning of each episode
         current_state = init_graph(global_vars.n, global_vars.initial_adder_type)
         current_state.output_verilog()
-        current_state.output_nodelist()
+        current_state.output_feature_list("nodelist", current_state.nodelist)
+        current_state.output_feature_list("levellist", current_state.levellist)
+        current_state.output_feature_list("minlist", current_state.minlist)
+        current_state.output_feature_list("fanoutlist", current_state.fanoutlist)
         current_state.run_yosys()
         delay,area,power = current_state.run_openroad()
         current_state_metrics = torch.tensor([delay, area, power]).repeat(B, 1)
@@ -432,7 +435,7 @@ def train(cfg: TrainingConfig, device=None) -> Tuple[PrefixRL_DQN, PrefixRL_DQN]
         
         # Sample a new value for epsilon-greedy exploration (PrefixRL Section III B)
         epsilon = sample_epsilon(episode)
-        print("epsilon: ", epsilon)
+        # print("epsilon: ", epsilon)
         
         # Train for num_steps steps per episode
         for step in tqdm(range(global_vars.num_steps), desc="Training steps"):
@@ -466,17 +469,17 @@ def train(cfg: TrainingConfig, device=None) -> Tuple[PrefixRL_DQN, PrefixRL_DQN]
             else:
                 action_idx, action, value_per_batch = get_best_action(q_masked, w_area, w_delay)
                 
-            print("Shape of action_idx: ", action_idx.shape)
-            print("action_idx: ", action_idx)
-            print("Shape of action: ", action.shape)
-            print("action: ", action)
-            label = "rand" if rand_selection else "max"
-            print(f"Shape of {label}_per_batch: {value_per_batch.shape}")
-            print(f"{label}_per_batch: {value_per_batch}")
+            # print("Shape of action_idx: ", action_idx.shape)
+            # print("action_idx: ", action_idx)
+            # print("Shape of action: ", action.shape)
+            # print("action: ", action)
+            # label = "rand" if rand_selection else "max"
+            # print(f"Shape of {label}_per_batch: {value_per_batch.shape}")
+            # print(f"{label}_per_batch: {value_per_batch}")
             
             # next_states is a list of B Graph_State objects
             # TODO: this will be the bottleneck of training. Should be performed in parallel instead of sequentially
-            next_states = evaluate_next_state(current_states, action, action_idx[:,0], action_idx[:,1], B)
+            next_states = evaluate_next_state_batch(current_states, action, action_idx[:,0], action_idx[:,1], B)
             next_state_nodelist = torch.stack([torch.tensor(next_states[b].nodelist) for b in range(B)])
             next_state_minlist = torch.stack([torch.tensor(next_states[b].minlist) for b in range(B)])
             next_state_levellist = torch.stack([torch.tensor(next_states[b].levellist) for b in range(B)])
@@ -508,7 +511,7 @@ def train(cfg: TrainingConfig, device=None) -> Tuple[PrefixRL_DQN, PrefixRL_DQN]
             
             # Sample experience buffer
             sampled_elements = buf.sample()  # shapes (B,...)
-            print("Shape of sampled_elements: ", len(sampled_elements))
+            # print("Shape of sampled_elements: ", len(sampled_elements))
             # print("sampled_elements: ", sampled_elements)
             
             # Q(s) from online network - needs gradients
@@ -555,10 +558,13 @@ def train(cfg: TrainingConfig, device=None) -> Tuple[PrefixRL_DQN, PrefixRL_DQN]
             
             training_log_entry = ""
             for b in range(B):
-                training_log_entry += "{},{},{},{},{},{},{},{}\n".format(
+                training_log_entry += "{},{},{},{},{},{},{},{},{},{},{}\n".format(
                     time.time(),
                     episode,
                     step,
+                    replay_action[b].item(),
+                    replay_action_idx[b][0].item(),
+                    replay_action_idx[b][1].item(),
                     replay_reward[b].item(),
                     target[b].item(),
                     replay_q_sa[b].item(),

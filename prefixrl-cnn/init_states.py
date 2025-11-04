@@ -33,9 +33,9 @@ def init_graph_serial(n: int):
     size = nodelist.sum() - n
     
     state = Graph_State(level, n, size, nodelist, levellist, minlist, 0)
-    
+    state.update_fanoutlist()
     return state
-
+    
 # Initialize sklansky graph (Taken from ArithTreeRL)
 def init_graph_sklansky(n: int):
     nodelist = np.zeros((n, n))
@@ -67,7 +67,7 @@ def init_graph_sklansky(n: int):
     
     state = Graph_State(level, n, size, nodelist, levellist, minlist, 0)
     state.nodelist, state.minlist = state.legalize(nodelist, minlist)
-    state.update_available_choice()
+    state.update_fanoutlist()
     return state
 
 # Initial Brent-Kung graph (Taken from ArithTreeRL)
@@ -103,7 +103,7 @@ def init_graph_brent_kung(n: int):
     size = nodelist.sum() - n
     print("BK level ={}, size = {}".format(levellist.max(), nodelist.sum()-n))
     state = Graph_State(level, n, size, nodelist, levellist, minlist, 0)
-    
+    state.update_fanoutlist()
     return state
         
         
