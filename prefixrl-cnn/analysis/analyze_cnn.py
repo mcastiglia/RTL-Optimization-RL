@@ -1,9 +1,12 @@
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import os
 import glob
 from datetime import datetime
+import argparse
 
 def plot_synthesis_results(csv_file_path, save_plots=True, output_dir=None):
     """
@@ -327,6 +330,11 @@ def analyze_all_files(analysis_dir=None):
         print(f"{'='*60}")
         plot_training_metrics(training_file)
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Analyze CSV files in the analysis directory.")
+    parser.add_argument("--analysis_dir", type=str, default=None, help="Path to analysis directory (defaults to current script directory)")
+    return parser.parse_args()
+
 def main():
     """
     Main function to analyze CSV files in the analysis directory.
@@ -334,11 +342,8 @@ def main():
     print("RTL Optimization RL Analysis Tool")
     print("=" * 40)
     
-    # Get the directory of this script
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    
-    # Analyze all files in the current directory
-    analyze_all_files(script_dir)
+    args = parse_arguments()
+    analyze_all_files(args.analysis_dir)
 
 if __name__ == "__main__":
     main()
