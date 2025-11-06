@@ -468,7 +468,7 @@ def evaluate_job(args):
 #   with _lock:
 #     print(f"[Batch {b}] Finished evaluation: {next_state.verilog_file_name}")
   
-#   return next_state
+  return next_state
     
 # Evaluate the next state metrics for each batch element
 # TODO: should be performed in parallel instead of sequentially
@@ -488,7 +488,7 @@ def evaluate_next_state_parallel(current_states: List["Graph_State"], best_actio
   args = [(b, current_states, best_action, action_x, action_y) for b in range (batch_size)]
 
   num_workers = max(1, min(os.cpu_count() - 1, batch_size))
-  print(f"Starting evaluation with {num_workers} worker(s) for {batch_size} batch elements...")
+#   print(f"Starting evaluation with {num_workers} worker(s) for {batch_size} batch elements...")
   
   with Pool(processes=num_workers) as pool:
     next_states = pool.map(evaluate_job, args)
