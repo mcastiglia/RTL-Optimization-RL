@@ -400,7 +400,8 @@ class TrainingConfig:
     
 def train(cfg: TrainingConfig, device=None) -> Tuple[PrefixRL_DQN, PrefixRL_DQN]:
     device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
+    print(device)    
+
     # TODO: PrefixRL uses a double DQN architecture, where there is an online network (net) and an offline network (tgt)
     # Network actual being trained each step (also called online/policy network)
     net = PrefixRL_DQN(blocks=32, width=256).to(device)  # paper
@@ -497,6 +498,7 @@ def train(cfg: TrainingConfig, device=None) -> Tuple[PrefixRL_DQN, PrefixRL_DQN]
             next_state_metrics = torch.from_numpy(np.array([[next_states[b].delay, next_states[b].area, next_states[b].power] for b in range(B)]))
             
             reward = compute_reward(current_state_metrics, next_state_metrics, w_area, w_delay)
+            reward = reward.to(device)
             
             # Build features for the next state (inputs are already batched)
             next_feats = build_features(
