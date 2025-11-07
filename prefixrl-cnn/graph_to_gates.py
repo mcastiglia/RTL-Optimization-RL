@@ -21,6 +21,7 @@ def parse_arguments():
     parser.add_argument('--output_dir', type = str, default = 'out/', help='Output directory for generated files')
     parser.add_argument('--save_verilog', action = 'store_true', default = False, help="Save the generated Verilog files")
     parser.add_argument('--disable_parallel_evaluation', action = 'store_true', default = False, help="Enable parallel synthesis and PnR for next state evaluation")
+    parser.add_argument('--restore_from', type=str, default=None, help="Path to checkpoint file to restore from")
     
     args = parser.parse_args()
     
@@ -38,6 +39,7 @@ def parse_arguments():
     print_info_formatted("Output directory", args.output_dir)
     print_info_formatted("Save Verilog", str(args.save_verilog))
     print_info_formatted("Parallel evaluation", "Disabled" if args.disable_parallel_evaluation else "Enabled")
+    print_info_formatted("Restore from", args.restore_from if args.restore_from else "None")
     print(SEPARATOR)
 
     global_vars.initial_adder_type = args.adder_type
@@ -51,6 +53,7 @@ def parse_arguments():
     global_vars.batch_size = args.batch_size
     global_vars.save_verilog = args.save_verilog
     global_vars.disable_parallel_evaluation = args.disable_parallel_evaluation
+    global_vars.restore_from = args.restore_from
     strftime = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
     
     # Create output directory structure
@@ -120,7 +123,7 @@ def main():
     print(SEPARATOR)
     
     # Run RL training process
-    train(TrainingConfig())
+    train(TrainingConfig(), global_vars.restore_from)
 
 if __name__ == "__main__":
     main()

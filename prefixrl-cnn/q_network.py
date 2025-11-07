@@ -12,6 +12,7 @@ from environment import evaluate_next_state_batch
 from training_timer import TrainingTimer
 from tqdm import tqdm
 import time
+import os
     
 # Residual block for the CNN (Adapted from PrefixRL Figure 2)
 class ResidualBlock(nn.Module):
@@ -398,9 +399,12 @@ class TrainingConfig:
     lr_decay: float = 0.99                    # exponential decay factor for learning rate
     
     
-def train(cfg: TrainingConfig, device=None) -> Tuple[PrefixRL_DQN, PrefixRL_DQN]:
+def train(cfg: TrainingConfig, restore_from=None, device=None) -> Tuple[PrefixRL_DQN, PrefixRL_DQN]:
     device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(device)    
+    print(device)
+
+    start_episode = 0
+    start_step = 0
 
     # TODO: PrefixRL uses a double DQN architecture, where there is an online network (net) and an offline network (tgt)
     # Network actual being trained each step (also called online/policy network)
@@ -414,6 +418,16 @@ def train(cfg: TrainingConfig, device=None) -> Tuple[PrefixRL_DQN, PrefixRL_DQN]
     scheduler = torch.optim.lr_scheduler.ExponentialLR(opt, gamma=cfg.lr_decay)
     buf = ReplayBuffer(400000) # Initialize replay buffer with 4e5 elements
 
+    if restore_from:
+        checkpoint = torch.load(restore_from, map_location=device)
+        net.load_state_dict(checkpoint['net'])
+        tgt.load_state_dict(checkpoint['tgt'])
+        opt.load_state_dict(checkpoint['opt'])
+        scheduler.load_state_dict(checkpoint['scheduler'])
+        start_episode = checkpoint['episode']
+        start_step = checkpoint['step']
+        print(f"Restored from checkpoint: episode {start_episode}, step {start_step}")
+
     grad_steps = 0
 
     # Weight scalar for area and delay
@@ -425,7 +439,7 @@ def train(cfg: TrainingConfig, device=None) -> Tuple[PrefixRL_DQN, PrefixRL_DQN]
     timer = TrainingTimer(global_vars.num_episodes, global_vars.num_steps)
     
     # Main training loop
-    for episode in range(global_vars.num_episodes):
+    for episode in range(start_episode, global_vars.num_episodes):
         timer.start_episode(episode)
         
         # Initial environment state at beginning of each episode
@@ -448,7 +462,8 @@ def train(cfg: TrainingConfig, device=None) -> Tuple[PrefixRL_DQN, PrefixRL_DQN]
         
         # Train for num_steps steps per episode
         timer.start_step()
-        pbar = tqdm(range(global_vars.num_steps), desc=f"Episode {episode+1}/{global_vars.num_episodes}")
+        start_step_for_episode = start_step if episode == start_episode else 0
+        pbar = tqdm(range(start_step_for_episode, global_vars.num_steps), desc=f"Episode {episode+1}/{global_vars.num_episodes}")
         for step in pbar:
             current_state_nodelist = torch.from_numpy(np.array([current_states[b].nodelist for b in range(B)]))
             current_state_minlist = torch.from_numpy(np.array([current_states[b].minlist for b in range(B)]))
@@ -588,6 +603,19 @@ def train(cfg: TrainingConfig, device=None) -> Tuple[PrefixRL_DQN, PrefixRL_DQN]
             global_vars.training_log.flush()
             
             timer.end_step(step, pbar)
+
+            if (step + 1) % max(1, global_vars.num_steps // 10) == 0:
+                checkpoint_path = os.path.join(global_vars.output_dir, f'checkpoint_ep{episode}_step{step}.pth')
+                checkpoint = {
+                    'net': net.state_dict(),
+                    'tgt': tgt.state_dict(),
+                    'opt': opt.state_dict(),
+                    'scheduler': scheduler.state_dict(),
+                    'episode': episode,
+                    'step': step,
+                }
+                torch.save(checkpoint, checkpoint_path)
+                print(f"Saved checkpoint at episode {episode}, step {step}")
 
         episode_time, estimates = timer.end_episode(init_time)
         timer.print_episode_summary(episode, episode_time, init_time, estimates)
