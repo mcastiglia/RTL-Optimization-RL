@@ -1,7 +1,0 @@
-torch
-torch-geometric
-numpy
-gym
-stable-baselines3
-'simmy>=2'
-matplotlib
