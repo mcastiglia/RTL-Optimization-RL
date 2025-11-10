@@ -1,7 +1,0 @@
-
-[submodule "OpenROAD/OpenROAD-flow-scripts"]
-	path = /OpenROAD/OpenROAD-flow-scripts
-	url = https://github.com/The-OpenROAD-Project/OpenROAD-flow-scripts.git
-[submodule "OpenROAD/ArithTreeRL"]
-	path = OpenROAD/ArithTreeRL
-	url = https://github.com/laiyao1/ArithTreeRL.git
