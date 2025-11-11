@@ -11,6 +11,8 @@ def init_graph(n: int, type: int):
         return init_graph_sklansky(n)
     elif type == 2:
         return init_graph_brent_kung(n)
+    elif type == 3:
+        return init_graph_kogge_stone(n)
     else:
         raise ValueError(f"Invalid initial adder type: {type}")
     
@@ -105,4 +107,35 @@ def init_graph_brent_kung(n: int):
     state.update_fanoutlist()
     return state
         
-        
+
+def init_graph_kogge_stone(n: int):
+    nodelist = np.zeros((n, n))
+    levellist = np.zeros((n, n))
+
+    # Initialize generate-propagate (each bit drives itself)
+    for i in range(n):
+        nodelist[i, i] = 1
+        levellist[i, i] = 1
+
+    # Build Kogge-Stone prefix stages
+    d = 1
+    level = 1
+    while d < n:
+        for i in range(d, n):
+            j = i - d
+            nodelist[i, j] = 1
+            levellist[i, j] = level + 1
+        d *= 2
+        level += 1
+
+    minlist = copy.deepcopy(nodelist)
+    for i in range(n):
+        minlist[i, i] = 0
+        minlist[i, 0] = 0
+
+    level = int(levellist.max())
+    size = nodelist.sum() - n
+
+    state = Graph_State(level, n, size, nodelist, levellist, minlist, 0)
+    state.update_fanoutlist()
+    return state
