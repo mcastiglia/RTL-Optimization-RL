@@ -10,12 +10,19 @@ import torch
 from typing import List, Tuple
 import time
 from multiprocessing import Pool, Lock
+import multiprocessing
 from typing import List
 import matplotlib.pyplot as plt
 import networkx as nx
 
 _lock = Lock()
 step_num = 0
+
+# Set multiprocessing start method to 'spawn' to avoid CUDA issues
+try:
+    multiprocessing.set_start_method('spawn')
+except RuntimeError:
+    pass  # start method already set
 
 class Graph_State(object):
     def __init__(self, level, n, size, nodelist, levellist, minlist, level_bound_delta):
