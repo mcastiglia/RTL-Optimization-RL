@@ -616,7 +616,7 @@ def train(cfg: TrainingConfig, restore_from=None, device=None) -> Tuple[PrefixRL
             
             timer.end_step(step, pbar)
 
-            if (step + 1) % max(1, global_vars.num_steps // 10) == 0:
+            if not global_vars.disable_checkpointing and (step + 1) % max(1, global_vars.num_steps // 10) == 0:
                 checkpoint_path = os.path.join(global_vars.output_dir, f'checkpoint_ep{episode}_step{step}.pth')
                 checkpoint = {
                     'net': net.state_dict(),
