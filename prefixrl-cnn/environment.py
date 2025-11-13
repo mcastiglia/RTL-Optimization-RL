@@ -209,21 +209,20 @@ class Graph_State(object):
             total_fanout = 0
             current = (sx, sy)
             # Move down until reaching level 1
-            while True:
-                lp = find_lower_parent(current[0], current[1])
-                if lp is None:
-                    break
-                lp_level = int(self.levellist[lp[0], lp[1]])
-                total_fanout += int(self.fanoutlist[lp[0], lp[1]])
-                if lp_level <= 1:
-                    break
-                current = lp
+            lp = find_lower_parent(current[0], current[1])
+            if lp is None:
+                break
+            lp_level = int(self.levellist[lp[0], lp[1]])
+            total_fanout = int(self.fanoutlist[lp[0], lp[1]]) + (max_levels - 2)
+            # print(f"Fanout at level {lp_level}: {int(self.fanoutlist[lp[0], lp[1]])}, total fanout: {total_fanout}")
             if total_fanout > best_total_fanout:
                 best_total_fanout = total_fanout
+                
+        # print(f"Best total fanout: {best_total_fanout}")
         driving_delay = D_0 * best_total_fanout
+        # print(f"Driving delay: {driving_delay}")
         delay_total = internal_delay + driving_delay + final_xor_delay
-        
-        # print("Total analytic delay: ", delay_total)
+        # print(f"Total analytic delay: {delay_total}")
         self.analytic_delay = delay_total
         return delay_total
         

@@ -5,3 +5,6 @@
 [submodule "OpenROAD/ArithTreeRL"]
 	path = OpenROAD/ArithTreeRL
 	url = https://github.com/laiyao1/ArithTreeRL.git
+[submodule "rtla-synthesis"]
+	path = rtla-synthesis
+	url = https://github.com/cbrynds/rtla-synthesis.git
