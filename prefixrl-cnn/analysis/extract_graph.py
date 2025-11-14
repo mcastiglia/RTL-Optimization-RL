@@ -22,6 +22,8 @@ def extract_min_scalarized_graph(file_name: str, w_scalar: float, c_delay: float
     w_area = 1 - w_scalar
     min_score = {}
     min_score['scalar'] = float('inf')
+    min_line_num = None
+    total_lines_in_file = 0
     
     with open(file_name, 'r') as file:
         reader = csv.DictReader(file)
@@ -37,6 +39,7 @@ def extract_min_scalarized_graph(file_name: str, w_scalar: float, c_delay: float
                 
                 if scalar_score < min_score['scalar']:
                     min_score['verilog_file_name'] = verilog_file_name
+                    min_line_num = reader.line_num
                     min_score['scalar'] = scalar_score
                     min_score['delay'] = delay
                     min_score['area'] = area
@@ -46,6 +49,7 @@ def extract_min_scalarized_graph(file_name: str, w_scalar: float, c_delay: float
             except (KeyError, ValueError) as e:
                 print(f"Warning: Skipping row due to error: {e}")
                 continue
+        total_lines_in_file = reader.line_num
             
     print("Verilog file that minimizes scalar score: ", min_score['verilog_file_name'])
     print("Scalar score: ", min_score['scalar'])
@@ -54,6 +58,8 @@ def extract_min_scalarized_graph(file_name: str, w_scalar: float, c_delay: float
     print("Level: ", min_score['level'])
     print("Size: ", min_score['size'])
     print("Fanout: ", min_score['fanout'])
+    print("CSV line of minimum: ", min_line_num)
+    print("Total lines in file: ", total_lines_in_file)
     
     return min_score
     
@@ -92,10 +98,6 @@ def extract_feature_lists(directory_name: str, verilog_file_name: str):
                 array = load_feature_array(filepath)
                 if array is not None:
                     feature_arrays[feature_name] = array
-    
-    for name, array in feature_arrays.items():
-        print(f"{name}: shape {array.shape}")
-        print(f"{name}:\n{array}\n")
         
     return feature_arrays
         
@@ -174,10 +176,6 @@ def plot_prefix_graph(nodelist, minlist, levellist, verilog_file_name, output_di
         
 def main():
     args = parse_arguments()
-    verilog_file_name = "adder_16b_14_17_f2507d427867bf12f82b506b0ab9815e"
-    # feature_arrays = extract_feature_lists(args.input_dir, verilog_file_name)
-    # feature_arrays['levellist'] = update_levellist(feature_arrays['nodelist'], feature_arrays['levellist'])
-    # plot_prefix_graph(feature_arrays['nodelist'], feature_arrays['minlist'], feature_arrays['levellist'], verilog_file_name, args.plot_dir)
     
     min_score = extract_min_scalarized_graph(args.file_name, args.w_scalar, args.c_delay, args.c_area)
     feature_arrays = extract_feature_lists(args.input_dir, min_score['verilog_file_name'])
