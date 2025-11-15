@@ -13,6 +13,7 @@ from training_timer import TrainingTimer
 from tqdm import tqdm
 import time
 import os
+import glob
     
 # Residual block for the CNN (Adapted from PrefixRL Figure 2)
 class ResidualBlock(nn.Module):
@@ -422,6 +423,8 @@ def train(cfg: TrainingConfig, restore_from=None, device=None) -> Tuple[PrefixRL
         scheduler.load_state_dict(checkpoint['scheduler'])
         start_episode = checkpoint['episode']
         start_step = checkpoint['step']
+        if 'buf' in checkpoint:
+            buf = checkpoint['buf']
         print(f"Restored from checkpoint: episode {start_episode}, step {start_step}")
 
     grad_steps = 0
@@ -617,6 +620,13 @@ def train(cfg: TrainingConfig, restore_from=None, device=None) -> Tuple[PrefixRL
             timer.end_step(step, pbar)
 
             if not global_vars.disable_checkpointing and (step + 1) % max(1, global_vars.num_steps // 10) == 0:
+                # Delete all previous checkpoints
+                checkpoint_pattern = os.path.join(global_vars.output_dir, 'checkpoint_*.pth')
+                for f in glob.glob(checkpoint_pattern):
+                    try:
+                        os.remove(f)
+                    except OSError:
+                        pass
                 checkpoint_path = os.path.join(global_vars.output_dir, f'checkpoint_ep{episode}_step{step}.pth')
                 checkpoint = {
                     'net': net.state_dict(),
@@ -625,6 +635,7 @@ def train(cfg: TrainingConfig, restore_from=None, device=None) -> Tuple[PrefixRL
                     'scheduler': scheduler.state_dict(),
                     'episode': episode,
                     'step': step,
+                    'buf': buf,
                 }
                 torch.save(checkpoint, checkpoint_path)
                 print(f"Saved checkpoint at episode {episode}, step {step}")
