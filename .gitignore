@@ -10,3 +10,4 @@ OpenROAD/OpenROAD-flow-scripts/
 OpenROAD/prefix-flow/results
 /out/
 prefixrl-cnn/adder*
+prefixrl-cnn/adder*/*
