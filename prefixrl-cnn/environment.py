@@ -447,90 +447,204 @@ class Graph_State(object):
             raise RuntimeError(f"Yosys failed for {yosys_script_file_name}")
         if not global_vars.save_verilog:
             os.remove(src_file_path)
-            
-    # Run OpenROAD to perform place and route on the synthesized Verilog code (Taken from ArithTreeRL)
+    
     def run_openroad(self, batch_idx: int = 0):
 
-        file_name_prefix = self.verilog_file_name.split(".")[0]
+      file_name_prefix = self.verilog_file_name.split(".")[0]
+  
+      # Check cache
+      hash_idx = file_name_prefix.split("_")[-1]
+      if hash_idx in global_vars.result_cache:
+          delay = global_vars.result_cache[hash_idx]["delay"]
+          area = global_vars.result_cache[hash_idx]["area"]
+          power = global_vars.result_cache[hash_idx]["power"]
+          global_vars.cache_hit += 1
+          self.delay = delay
+          self.area = area
+          self.power = power
+          return delay, area, power
+  
+      # Copy Yosys output to OpenROAD directory
+      verilog_file_path = f"{global_vars.openroad_path}adder_tmp_{file_name_prefix}.v"
+      yosys_file_name = os.path.join(
+          global_vars.output_dir,
+          "run_yosys_mid",
+          self.verilog_file_name.split(".")[0] + "_yosys.v"
+      )
+      shutil.copyfile(yosys_file_name, verilog_file_path)
+  
+      # Write SDC
+      sdc_file_path = f"{global_vars.openroad_path}adder_nangate45_{file_name_prefix}.sdc"
+      with open(sdc_file_path, "w") as fopen_sdc:
+          fopen_sdc.write(global_vars.sdc_format)
+  
+      # Write TCL
+      tcl_path = f"{global_vars.openroad_path}adder_nangate45_{file_name_prefix}.tcl"
+      with open(tcl_path, "w") as fopen_tcl:
+          fopen_tcl.write(global_vars.openroad_tcl.format(
+              f"adder_tmp_{file_name_prefix}.v",
+              f"adder_nangate45_{file_name_prefix}.sdc",
+              batch_idx,
+              global_vars.flow_type
+          ))
+  
+      if not global_vars.openroad_path.endswith('/'):
+          global_vars.openroad_path += '/'
+  
+      tcl_script = f"adder_nangate45_{file_name_prefix}.tcl"
+  
+      # ------------------------------
+      # NEW LOGIC: 30 sec timeout, retry 3 times
+      # ------------------------------
+      MAX_RETRIES = 3
+      TIMEOUT = 30
+      output = None
+  
+      for attempt in range(1, MAX_RETRIES + 1):
+          try:
+              output = subprocess.check_output(
+                  ['openroad', tcl_script],
+                  cwd=global_vars.openroad_path,
+                  timeout=TIMEOUT,
+                  stderr=subprocess.STDOUT
+              ).decode('utf-8')
+  
+              # Try extracting results
+              area, wslack, power, note = self.extract_results(output)
+  
+              # If valid result ? break
+              if note is not None:
+                  break
+  
+          except subprocess.TimeoutExpired:
+              print(f"[OpenROAD] Timeout on attempt {attempt} for {file_name_prefix}")
+  
+          except Exception as e:
+              print(f"[OpenROAD] Error on attempt {attempt}: {e}")
+  
+          # If failed extraction, loop continues to retry
+  
+      else:
+          # ------------------------------------------------
+          # All 3 attempts failed ? give up on graph safely
+          # ------------------------------------------------
+          print(f"[OpenROAD] FAILED after {MAX_RETRIES} attempts ? skipping graph {file_name_prefix}")
+          self.delay = None
+          self.area = None
+          self.power = None
+          return None, None, None
+  
+      # ------------------------------
+      # Extraction succeeded
+      # ------------------------------
+      delay = global_vars.CLOCK_PERIOD_TARGET - wslack
+      self.delay = delay
+      self.area = area
+      self.power = power
+  
+      # Cache it
+      global_vars.result_cache[hash_idx] = {
+          "delay": delay,
+          "area": area,
+          "power": power
+      }
+  
+      # Clean temp files
+      for path in [
+          yosys_file_name,
+          tcl_path,
+          sdc_file_path,
+          verilog_file_path
+      ]:
+          if os.path.exists(path):
+              os.remove(path)
+  
+      return delay, area, power
+
+            
+    # Run OpenROAD to perform place and route on the synthesized Verilog code (Taken from ArithTreeRL)
+    #def run_openroad(self, batch_idx: int = 0):
+
+        #file_name_prefix = self.verilog_file_name.split(".")[0]
         
         # Check to see if results are cached
-        hash_idx = file_name_prefix.split("_")[-1]
-        if hash_idx in global_vars.result_cache:
-            delay = global_vars.result_cache[hash_idx]["delay"]
-            area = global_vars.result_cache[hash_idx]["area"]
-            power = global_vars.result_cache[hash_idx]["power"]
-            global_vars.cache_hit += 1
-            self.delay = delay
-            self.area = area
-            self.power = power
-            return delay, area, power
+        #hash_idx = file_name_prefix.split("_")[-1]
+        #if hash_idx in global_vars.result_cache:
+            #delay = global_vars.result_cache[hash_idx]["delay"]
+            #area = global_vars.result_cache[hash_idx]["area"]
+            #power = global_vars.result_cache[hash_idx]["power"]
+            #global_vars.cache_hit += 1
+            #self.delay = delay
+            #self.area = area
+            #self.power = power
+            #return delay, area, power
         
         # Copy the Yosys output to the OpenROAD test directory
-        verilog_file_path = "{}adder_tmp_{}.v".format(global_vars.openroad_path, file_name_prefix)
-        yosys_file_name = os.path.join(global_vars.output_dir, "run_yosys_mid", self.verilog_file_name.split(".")[0] + "_yosys.v")
-        shutil.copyfile(yosys_file_name, verilog_file_path)
+        #verilog_file_path = "{}adder_tmp_{}.v".format(global_vars.openroad_path, file_name_prefix)
+        #yosys_file_name = os.path.join(global_vars.output_dir, "run_yosys_mid", self.verilog_file_name.split(".")[0] + "_yosys.v")
+        #shutil.copyfile(yosys_file_name, verilog_file_path)
         
-        sdc_file_path = "{}adder_nangate45_{}.sdc".format(global_vars.openroad_path, file_name_prefix)
-        fopen_sdc = open(sdc_file_path, "w")
-        fopen_sdc.write(global_vars.sdc_format)
-        fopen_sdc.close()
-        fopen_tcl = open("{}adder_nangate45_{}.tcl".format(global_vars.openroad_path, file_name_prefix), "w")
-        fopen_tcl.write(global_vars.openroad_tcl.format("adder_tmp_{}.v".format(file_name_prefix), 
-            "adder_nangate45_{}.sdc".format(file_name_prefix), batch_idx, global_vars.flow_type))
-        fopen_tcl.close()
+        #sdc_file_path = "{}adder_nangate45_{}.sdc".format(global_vars.openroad_path, file_name_prefix)
+        #fopen_sdc = open(sdc_file_path, "w")
+        #fopen_sdc.write(global_vars.sdc_format)
+        #fopen_sdc.close()
+        #fopen_tcl = open("{}adder_nangate45_{}.tcl".format(global_vars.openroad_path, file_name_prefix), "w")
+        #fopen_tcl.write(global_vars.openroad_tcl.format("adder_tmp_{}.v".format(file_name_prefix), 
+            #"adder_nangate45_{}.sdc".format(file_name_prefix), batch_idx, global_vars.flow_type))
+        #fopen_tcl.close()
         
         # Ensure openroad_path ends with '/' for consistent path handling
-        if not global_vars.openroad_path.endswith('/'):
-            global_vars.openroad_path = global_vars.openroad_path + '/'
+        #if not global_vars.openroad_path.endswith('/'):
+            #global_vars.openroad_path = global_vars.openroad_path + '/'
             
-        tcl_script = "adder_nangate45_{}.tcl".format(file_name_prefix)
-        command = "openroad {}".format(tcl_script)
+        #tcl_script = "adder_nangate45_{}.tcl".format(file_name_prefix)
+        #command = "openroad {}".format(tcl_script)
     
         # print("COMMAND: {}".format(command))
-        try:
-            output = subprocess.check_output(
-                ['openroad', "{}adder_nangate45_{}.tcl".format("", file_name_prefix)], 
-                cwd=global_vars.openroad_path,
-                timeout=600,
-                stderr=subprocess.STDOUT
-            ).decode('utf-8')
-        except subprocess.TimeoutExpired:
-            raise RuntimeError(f"OpenROAD timed out after 600 seconds for {file_name_prefix}")
+        #try:
+            #output = subprocess.check_output(
+                #['openroad', "{}adder_nangate45_{}.tcl".format("", file_name_prefix)], 
+                #cwd=global_vars.openroad_path,
+                #timeout=600,
+                #stderr=subprocess.STDOUT
+            #).decode('utf-8')
+        #except subprocess.TimeoutExpired:
+            #raise RuntimeError(f"OpenROAD timed out after 600 seconds for {file_name_prefix}")
         
-        note = None
-        retry = 0
-        area, wslack, power, note = self.extract_results(output)
-        while note is None and retry < 3:
-            try:
-                output = subprocess.check_output(
-                    ['openroad', tcl_script], 
-                    cwd=global_vars.openroad_path,
-                    timeout=600,
-                    stderr=subprocess.STDOUT
-                ).decode('utf-8')
-            except subprocess.TimeoutExpired:
-                raise RuntimeError(f"OpenROAD retry {retry+1} timed out after 600 seconds for {file_name_prefix}")
-            area, wslack, power, note = self.extract_results(output)
-            retry += 1
-        if os.path.exists(yosys_file_name):
-            os.remove(yosys_file_name)
-        if os.path.exists("{}adder_nangate45_{}.tcl".format(global_vars.openroad_path, 
-                file_name_prefix)):
-            os.remove("{}adder_nangate45_{}.tcl".format(global_vars.openroad_path, file_name_prefix))
-        if os.path.exists("{}adder_nangate45_{}.sdc".format(global_vars.openroad_path, 
-                file_name_prefix)):
-            os.remove("{}adder_nangate45_{}.sdc".format(global_vars.openroad_path, file_name_prefix))
-        if os.path.exists("{}adder_tmp_{}.v".format(global_vars.openroad_path, 
-                file_name_prefix)):
-            os.remove("{}adder_tmp_{}.v".format(global_vars.openroad_path,file_name_prefix))
-        delay = global_vars.CLOCK_PERIOD_TARGET - wslack
+        #note = None
+        #retry = 0
+        #area, wslack, power, note = self.extract_results(output)
+        #while note is None and retry < 3:
+            #try:
+                #output = subprocess.check_output(
+                    #['openroad', tcl_script], 
+                    #cwd=global_vars.openroad_path,
+                    #timeout=600,
+                    #stderr=subprocess.STDOUT
+                #).decode('utf-8')
+            #except subprocess.TimeoutExpired:
+                #raise RuntimeError(f"OpenROAD retry {retry+1} timed out after 600 seconds for {file_name_prefix}")
+            #area, wslack, power, note = self.extract_results(output)
+            #retry += 1
+        #if os.path.exists(yosys_file_name):
+            #os.remove(yosys_file_name)
+        #if os.path.exists("{}adder_nangate45_{}.tcl".format(global_vars.openroad_path, 
+                #file_name_prefix)):
+            #os.remove("{}adder_nangate45_{}.tcl".format(global_vars.openroad_path, file_name_prefix))
+        #if os.path.exists("{}adder_nangate45_{}.sdc".format(global_vars.openroad_path, 
+                #file_name_prefix)):
+            #os.remove("{}adder_nangate45_{}.sdc".format(global_vars.openroad_path, file_name_prefix))
+        #if os.path.exists("{}adder_tmp_{}.v".format(global_vars.openroad_path, 
+                #file_name_prefix)):
+            #os.remove("{}adder_tmp_{}.v".format(global_vars.openroad_path,file_name_prefix))
+        #delay = global_vars.CLOCK_PERIOD_TARGET - wslack
         # TODO: Removed the multiplier of 1000 to adjust these units to be in ns
         # delay *= 1000
-        self.delay = delay
-        self.area = area
-        self.power = power
-        global_vars.result_cache[hash_idx] = {"delay": delay, "area": area, "power": power}
-        return delay, area, power
+        #self.delay = delay
+        #self.area = area
+        #self.power = power
+        #global_vars.result_cache[hash_idx] = {"delay": delay, "area": area, "power": power}
+        #return delay, area, power
     
     # Parse reports from OpenROAD and return area, timing, and power metrics (Adapted from ArithTreeRL)
     def extract_results(self, openroad_output):
