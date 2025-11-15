@@ -122,47 +122,104 @@ class Graph_State(object):
                     prev_l = l
     
     # Get the next state from the action and coordinates (x, y)
+    #def evaluate_next_state(self, action_type, x, y, batch_idx: int):
+        #start_time = time.time()
+        #next_nodelist, next_minlist, next_levellist = self.modify_nodelist(not action_type, x, y)
+        #next_level = next_levellist.max()
+        #next_size = next_nodelist.sum() - self.n
+        
+        #next_state = Graph_State(next_level, self.n, next_size, next_nodelist,
+            #next_levellist, next_minlist, self.level_bound_delta)
+        
+        #next_state.update_fanoutlist()
+        #fanout = next_state.fanoutlist.max()
+        #next_state.level = next_state.levellist.max()
+        #next_state.output_verilog()
+        
+        # Perform synthesis and PnR if not using analytic model
+        #if not global_vars.use_analytic_model:
+            #next_state.run_yosys()
+            #delay, area, power = next_state.run_openroad(batch_idx)
+
+            #next_state.delay = delay
+            #next_state.area = area
+            #next_state.power = power
+        
+            #global_vars.synthesis_log.write("{},{:.2f},{:.2f},{:.2f},{:d},{:d},{:d},{:d},{:.2f}\n".format(
+                    #next_state.verilog_file_name.split(".")[0], 
+                    #next_state.delay, next_state.area, next_state.power, 
+                    #int(next_state.level), int(next_state.size), fanout,
+                    #global_vars.cache_hit,time.time() - start_time))
+            #global_vars.synthesis_log.flush()
+        #else:
+            #next_state.compute_critical_path_delay()
+            #global_vars.synthesis_log.write("{},{:.2f},{:.2f},{:.2f},{:d},{:d},{:d},{:d},{:.2f}\n".format(
+                    #next_state.verilog_file_name.split(".")[0], 
+                    #next_state.analytic_delay, int(next_state.size), 0, 
+                    #int(next_state.level), int(next_state.size), fanout,
+                    #global_vars.cache_hit,time.time() - start_time))
+            #global_vars.synthesis_log.flush()
+            
+        #return next_state
+    
+    
     def evaluate_next_state(self, action_type, x, y, batch_idx: int):
         start_time = time.time()
         next_nodelist, next_minlist, next_levellist = self.modify_nodelist(not action_type, x, y)
         next_level = next_levellist.max()
         next_size = next_nodelist.sum() - self.n
-        
-        next_state = Graph_State(next_level, self.n, next_size, next_nodelist,
-            next_levellist, next_minlist, self.level_bound_delta)
-        
+
+        next_state = Graph_State(
+            next_level, self.n, next_size, next_nodelist,
+            next_levellist, next_minlist, self.level_bound_delta
+        )
+
         next_state.update_fanoutlist()
         fanout = next_state.fanoutlist.max()
         next_state.level = next_state.levellist.max()
         next_state.output_verilog()
-        
-        # Perform synthesis and PnR if not using analytic model
+
         if not global_vars.use_analytic_model:
             next_state.run_yosys()
             delay, area, power = next_state.run_openroad(batch_idx)
-
+    
             next_state.delay = delay
             next_state.area = area
             next_state.power = power
-        
-            global_vars.synthesis_log.write("{},{:.2f},{:.2f},{:.2f},{:d},{:d},{:d},{:d},{:.2f}\n".format(
-                    next_state.verilog_file_name.split(".")[0], 
-                    next_state.delay, next_state.area, next_state.power, 
-                    int(next_state.level), int(next_state.size), fanout,
-                    global_vars.cache_hit,time.time() - start_time))
+    
+            safe_delay = delay if delay is not None else 0.0
+            safe_area  = area  if area  is not None else 0.0
+            safe_power = power if power is not None else 0.0
+    
+            global_vars.synthesis_log.write(
+                "{},{:.2f},{:.2f},{:.2f},{:d},{:d},{:d},{:d},{:.2f}\n".format(
+                    next_state.verilog_file_name.split(".")[0],
+                    safe_delay, safe_area, safe_power,
+                    int(next_state.level), int(next_state.size),
+                    fanout, global_vars.cache_hit,
+                    time.time() - start_time
+                )
+            )
             global_vars.synthesis_log.flush()
+    
         else:
             next_state.compute_critical_path_delay()
-            global_vars.synthesis_log.write("{},{:.2f},{:.2f},{:.2f},{:d},{:d},{:d},{:d},{:.2f}\n".format(
-                    next_state.verilog_file_name.split(".")[0], 
-                    next_state.analytic_delay, int(next_state.size), 0, 
-                    int(next_state.level), int(next_state.size), fanout,
-                    global_vars.cache_hit,time.time() - start_time))
-            global_vars.synthesis_log.flush()
-            
-        return next_state
     
-    # return best_next_state
+            safe_delay = next_state.analytic_delay if next_state.analytic_delay is not None else 0.0
+    
+            global_vars.synthesis_log.write(
+                "{},{:.2f},{:.2f},{:.2f},{:d},{:d},{:d},{:d},{:.2f}\n".format(
+                    next_state.verilog_file_name.split(".")[0],
+                    safe_delay, float(next_state.size), 0.0,
+                    int(next_state.level), int(next_state.size),
+                    fanout, global_vars.cache_hit,
+                    time.time() - start_time
+                )
+            )
+            global_vars.synthesis_log.flush()
+    
+        return next_state
+
   
     """
     Compute the critical path delay of the adder
