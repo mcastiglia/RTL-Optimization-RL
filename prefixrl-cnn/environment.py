@@ -586,10 +586,10 @@ class Graph_State(object):
           # All 3 attempts failed ? give up on graph safely
           # ------------------------------------------------
           print(f"[OpenROAD] FAILED after {MAX_RETRIES} attempts ? skipping graph {file_name_prefix}")
-          self.delay = None
-          self.area = None
-          self.power = None
-          return None, None, None
+          self.delay = 1e5
+          self.area = 1e5
+          self.power = 1e5
+          return 1e5, 1e5, 1e5
   
       # ------------------------------
       # Extraction succeeded
