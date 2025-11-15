@@ -187,9 +187,9 @@ class Graph_State(object):
             next_state.area = area
             next_state.power = power
     
-            safe_delay = delay if delay is not None else 0.0
-            safe_area  = area  if area  is not None else 0.0
-            safe_power = power if power is not None else 0.0
+            safe_delay = delay if delay is not None else 1e5
+            safe_area  = area  if area  is not None else 1e5
+            safe_power = power if power is not None else 1e5
     
             global_vars.synthesis_log.write(
                 "{},{:.2f},{:.2f},{:.2f},{:d},{:d},{:d},{:d},{:.2f}\n".format(
@@ -756,11 +756,7 @@ def evaluate_next_state_sequential(current_states: List[Graph_State], best_actio
     return next_states
     
 def evaluate_next_state_parallel(current_states: List["Graph_State"], best_action: torch.Tensor, action_x: torch.Tensor, action_y: torch.Tensor, batch_size: int):
-  # Move tensors to CPU to avoid CUDA issues in multiprocessing
-  best_action_cpu = best_action.cpu()
-  action_x_cpu = action_x.cpu()
-  action_y_cpu = action_y.cpu()
-  args = [(b, current_states, best_action_cpu, action_x_cpu, action_y_cpu) for b in range (batch_size)]
+  args = [(b, current_states, best_action, action_x, action_y) for b in range (batch_size)]
 
   num_workers = max(1, min(os.cpu_count() - 1, batch_size))
 #   print(f"Starting evaluation with {num_workers} worker(s) for {batch_size} batch elements...")
