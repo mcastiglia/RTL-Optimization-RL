@@ -74,7 +74,9 @@ def parse_arguments():
     global_vars.training_log = open(os.path.join(args.output_dir, "adder_training_log/adder_{}b/adder_{}b_training_{}.csv".format(args.input_bitwidth, 
         args.input_bitwidth, strftime)), "w")
     global_vars.synthesis_log.write("verilog_file_name,delay,area,power,level,size,fanout,cache_hit,time\n")
+    global_vars.synthesis_log.flush()
     global_vars.training_log.write("timestamp,episode,step,action,action_x,action_y,reward,bellman_target,expected_q,expected_q_next,loss\n")
+    global_vars.training_log.flush()
     global_vars.start_time = time.time()
     
     return args
