@@ -520,11 +520,6 @@ class Graph_State(object):
           self.area = area
           self.power = power
           return delay, area, power
-      if hash_idx in global_vars.failed_cache:
-          print(f"[OpenROAD] Skipping previously failed graph {file_name_prefix}")
-          self.delay = 1e5
-          self.area = 1e5
-          self.power = 1e5
   
       # Copy Yosys output to OpenROAD directory
       verilog_file_path = f"{global_vars.openroad_path}adder_tmp_{file_name_prefix}.v"
@@ -591,7 +586,6 @@ class Graph_State(object):
           # All 3 attempts failed ? give up on graph safely
           # ------------------------------------------------
           print(f"[OpenROAD] FAILED after {MAX_RETRIES} attempts ? skipping graph {file_name_prefix}")
-          global_vars.failed_cache[hash_idx] = True
           self.delay = 1e5
           self.area = 1e5
           self.power = 1e5
