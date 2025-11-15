@@ -1,4 +1,5 @@
 .venv/
+venv/
 __pycache__/
 *.pyc
 *.pyo
@@ -8,6 +9,10 @@ env/
 venv/*.sif
 OpenROAD/OpenROAD-flow-scripts/
 OpenROAD/prefix-flow/results
+OpenROAD/prefix-flow/*.sdc
+OpenROAD/prefix-flow/*.tcl
+OpenROAD/prefix-flow/*.v
+prefixrl-cnn/analysis/adder*
 /out/
 prefixrl-cnn/adder*
 prefixrl-cnn/adder*/*
