@@ -17,6 +17,7 @@ batch_size = 192
 disable_parallel_evaluation = False
 use_analytic_model = False
 disable_checkpointing = False
+consecutive_failures = 0
 
 ### Verilog Cell Definitions ###
 BLACK_CELL = '''module BLACK (

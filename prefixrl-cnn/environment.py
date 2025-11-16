@@ -510,11 +510,13 @@ class Graph_State(object):
             except subprocess.TimeoutExpired:
                 print(f"Yosys timeout on attempt {attempt} for {yosys_script_file_name}", flush=True)
                 if attempt == MAX_RETRIES:
+                    global_vars.consecutive_failures += 1
                     raise RuntimeError(f"Yosys timed out after {TIMEOUT} seconds for {yosys_script_file_name}")
                 time.sleep(0.5)
             except subprocess.CalledProcessError as e:
                 print(f"Yosys error on attempt {attempt} for {yosys_script_file_name}: {e.output}", flush=True)
                 if attempt == MAX_RETRIES:
+                    global_vars.consecutive_failures += 1
                     raise RuntimeError(f"Yosys failed for {yosys_script_file_name}")
                 time.sleep(0.5)
         
@@ -604,6 +606,7 @@ class Graph_State(object):
 
               # If valid result ? break
               if note is not None:
+                  global_vars.consecutive_failures = 0
                   break
   
           except subprocess.TimeoutExpired as e:
@@ -626,6 +629,7 @@ class Graph_State(object):
           delay = self.delay = 1e5
           area = self.area = 1e5
           power = self.power = 1e5
+          global_vars.consecutive_failures += 1
   
       # Cache it
       global_vars.result_cache[hash_idx] = {
