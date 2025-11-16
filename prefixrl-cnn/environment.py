@@ -495,7 +495,7 @@ class Graph_State(object):
         # fopen.write(global_vars.yosys_script_format.format(src_file_path, global_vars.YOSYS_OPTIMIZATION_EFFORT, global_vars.openroad_path, print_stat_command, dst_file_name))
         fopen.close()
         
-        MAX_RETRIES = 5
+        MAX_RETRIES = 3
         TIMEOUT = 30
         
         for attempt in range(1, MAX_RETRIES + 1):
@@ -576,9 +576,9 @@ class Graph_State(object):
       tcl_script = f"adder_nangate45_{file_name_prefix}.tcl"
   
       # ------------------------------
-      # NEW LOGIC: 30 sec timeout, retry 5 times
+      # NEW LOGIC: 30 sec timeout, retry 3 times
       # ------------------------------
-      MAX_RETRIES = 5
+      MAX_RETRIES = 3
       TIMEOUT = 30
       output = None
   
@@ -620,7 +620,7 @@ class Graph_State(object):
   
       else:
           # ------------------------------------------------
-          # All 5 attempts failed ? give up on graph safely
+          # All 3 attempts failed ? give up on graph safely
           # ------------------------------------------------
           print(f"[OpenROAD] FAILED after {MAX_RETRIES} attempts ? skipping graph {file_name_prefix}")
           delay = self.delay = 1e5
