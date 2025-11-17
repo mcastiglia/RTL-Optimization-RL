@@ -17,6 +17,7 @@ def parse_arguments():
     args.add_argument('--plot_dir', type=str, required=True)
     args.add_argument('--n64', action='store_true')
     args.add_argument('--pareto', action='store_true')
+    args.add_argument('--w_step', type=float, default=0.1)
     return args.parse_args()
 
 def extract_min_scalarized_graph(file_name: str, w_scalar: float, c_delay: float = 10.0, c_area: float = 1e-3):
@@ -224,7 +225,7 @@ def plot_scalar_bars(
     plt.tight_layout()
     plt.savefig(os.path.join(output_path, "scalar_scores_w{}.png".format(w_scalar)), dpi=300, bbox_inches="tight")
     
-def plot_scalar_pareto(n64: bool, min_scores: list, output_path: str = "scalar_scores.png", c_delay: float = 1.0, c_area: float = 1e-2):
+def plot_scalar_pareto(n64: bool, min_scores: dict, output_path: str = "scalar_scores.png", c_delay: float = 1.0, c_area: float = 1e-2, w_step: float = 0.1):
     if not n64:
         rca_delay = 1.932497550015271
         rca_area = 256.96
@@ -240,23 +241,36 @@ def plot_scalar_pareto(n64: bool, min_scores: list, output_path: str = "scalar_s
         brent_kung_delay = 1.7058077655439832
         brent_kung_area = 543.7
         
-    ws = np.arange(0.0,1.0,0.1)
+    ws = np.arange(0.0, 1.0, w_step)
     rca_scores = [w * (c_delay * rca_delay) + (1 - w) * (c_area * rca_area) for w in ws]
     sklansky_scores = [w * (c_delay * sklansky_delay) + (1 - w) * (c_area * sklansky_area) for w in ws]
     brent_kung_scores = [w * (c_delay * brent_kung_delay) + (1 - w) * (c_area * brent_kung_area) for w in ws]
-    
-    min_scores_delay = [min_score['delay'] for min_score in min_scores]
-    min_scores_area = [min_score['area'] for min_score in min_scores]
+
+    unique_map = {}
+    for w, score in min_scores.items():
+        area = float(score['area'])
+        delay = float(score['delay'])
+        key = (round(area, 6), round(delay, 6))
+        if key not in unique_map:
+            unique_map[key] = {'area': area, 'delay': delay, 'ws': [w]}
+        else:
+            unique_map[key]['ws'].append(w)
+
+    rl_areas = [v['area'] for v in unique_map.values()]
+    rl_delays = [v['delay'] for v in unique_map.values()]
+    rl_labels = [f"{min(v['ws']):.2f}" for v in unique_map.values()]
     plt.clf()
     fig, ax = plt.subplots()
     ax.scatter(sklansky_area, sklansky_delay, label="sklansky")
     ax.scatter(brent_kung_area, brent_kung_delay, label="brent_kung")
     ax.scatter(rca_area, rca_delay, label="rca")
-    ax.scatter(min_scores_area, min_scores_delay, label="PrefixRL")
+    rl_scatter = ax.plot(rl_areas, rl_delays, label="RL", marker="o", color="red")
+    for x, y, text in zip(rl_areas, rl_delays, rl_labels):
+        ax.annotate(text, (x, y), textcoords="offset points", xytext=(5, 5), ha="left", fontsize=8)
     ax.legend()
     ax.set_xlabel("Area (um^2)")
     ax.set_ylabel("Delay (ns)")
-    ax.set_title("Pareto Frontier for Baseline and PrefixRL-Optimized Adders")
+    ax.set_title("Pareto Frontier for Baseline and RL-Optimized Adders")
     ax.grid(axis="y", linestyle="--", alpha=0.3)
     plt.savefig(os.path.join(output_path, "scalar_pareto.png"), dpi=300, bbox_inches="tight")
     
@@ -270,10 +284,10 @@ def main():
     plot_scalar_bars(args.n64, min_score['scalar'], args.w_scalar, args.c_delay, args.c_area, args.plot_dir)
     
     if args.pareto:
-        min_scores = []
-        for w in np.arange(0.0,1.0,0.1):
+        min_scores = {}
+        for w in np.arange(0.0, 1.0, args.w_step):
             min_score = extract_min_scalarized_graph(args.file_name, w, args.c_delay, args.c_area)
-            min_scores.append(min_score)
-        plot_scalar_pareto(args.n64, min_scores, args.plot_dir)
+            min_scores[w] = min_score
+        plot_scalar_pareto(args.n64, min_scores, args.plot_dir, args.c_delay, args.c_area, args.w_step)
 if __name__ == "__main__":
     main()
