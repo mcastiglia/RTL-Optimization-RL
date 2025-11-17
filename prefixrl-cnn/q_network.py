@@ -392,8 +392,8 @@ class TrainingConfig:
     gamma: float = 0.75                      # paper
     lr: float = 4e-5                         # paper
     target_sync_every: int = 60              # paper
-    c_area: float = 1e-3                        # paper’s scaling
-    c_delay: float = 10.0                       # paper’s scaling
+    c_area: float = 1e-2                        # paper’s scaling
+    c_delay: float = 1.0                       # paper’s scaling
     lr_decay: float = 0.99                    # exponential decay factor for learning rate
     
     
