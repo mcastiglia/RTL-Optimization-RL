@@ -15,6 +15,7 @@ def parse_arguments():
     args.add_argument('--file_name', type=str, required=True)
     args.add_argument('--input_dir', type=str, required=True)
     args.add_argument('--plot_dir', type=str, required=True)
+    args.add_argument('--n64', action='store_true')
     return args.parse_args()
 
 def extract_min_scalarized_graph(file_name: str, w_scalar: float, c_delay: float = 10.0, c_area: float = 1e-3):
@@ -176,13 +177,58 @@ def plot_prefix_graph(nodelist, minlist, levellist, verilog_file_name, output_di
     
     plt.savefig(plot_title, dpi=300, bbox_inches="tight")        
         
+def plot_scalar_bars(
+    n64: bool,
+    min_score: float,
+    w_scalar: float,
+    c_delay: float = 10.0,
+    c_area: float = 1e-3,
+    output_path: str = "scalar_scores.png",
+):
+    """Plot min_score against scalar scores for RCA, Sklansky, and Brent-Kung."""
+    if not n64:
+        rca_delay = 1.932497550015271
+        rca_area = 256.96
+        sklansky_delay = 1.273223118529967
+        sklansky_area = 402.72
+        brent_kung_delay = 1.2637878323771907
+        brent_kung_area = 288.61
+    else:
+        rca_delay = 3.47527738645499
+        rca_area = 486.78
+        sklansky_delay = 1.905973210983792
+        sklansky_area = 852.26
+        brent_kung_delay = 1.7058077655439832
+        brent_kung_area = 543.7
+    
+    rca_score = w_scalar * (c_delay * rca_delay) + (1 - w_scalar) * (c_area * rca_area)
+    sklansky_score = w_scalar * (c_delay * sklansky_delay) + (1 - w_scalar) * (c_area * sklansky_area)
+    brent_kung_score = w_scalar * (c_delay * brent_kung_delay) + (1 - w_scalar) * (c_area * brent_kung_area)
+
+    labels = ["RL", "rca", "sklansky", "brent_kung"]
+    values = [min_score, rca_score, sklansky_score, brent_kung_score]
+
+    plt.clf()
+    fig, ax = plt.subplots()
+    bars = ax.bar(labels, values, color=["#4C78A8", "#F58518", "#54A24B", "#B279A2"])
+    ax.set_xlabel("Adder Type")
+    ax.set_ylabel("Scalar Score")
+    ax.set_title(f"Scalar Scores of Baseline and PrefixRL-Optimized Adders\n(w_scalar={w_scalar:.2f})")
+    ax.grid(axis="y", linestyle="--", alpha=0.3)
+
+    for bar in bars:
+        height = bar.get_height()
+        ax.annotate(f"{height:.3g}", xy=(bar.get_x() + bar.get_width() / 2, height), xytext=(0, 3), textcoords="offset points", ha="center", va="bottom")
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_path, "scalar_scores.png"), dpi=300, bbox_inches="tight")
+    
 def main():
     args = parse_arguments()
-    verilog_file_name = "adder_32b_32_495_3912c1bc9062937713639ca26b7c80fb"
-    # min_score = extract_min_scalarized_graph(args.file_name, args.w_scalar, args.c_delay, args.c_area)
-    feature_arrays = extract_feature_lists(args.input_dir, verilog_file_name)
-    # feature_arrays = extract_feature_lists(args.input_dir, min_score['verilog_file_name'])
-    plot_prefix_graph(feature_arrays['nodelist'], feature_arrays['minlist'], feature_arrays['levellist'], verilog_file_name, args.plot_dir)
-        # plot_prefix_graph(feature_arrays['nodelist'], feature_arrays['minlist'], feature_arrays['levellist'], min_score['verilog_file_name'], args.plot_dir)
+    min_score = extract_min_scalarized_graph(args.file_name, args.w_scalar, args.c_delay, args.c_area)
+    feature_arrays = extract_feature_lists(args.input_dir, min_score['verilog_file_name'])
+    plot_prefix_graph(feature_arrays['nodelist'], feature_arrays['minlist'], feature_arrays['levellist'], min_score['verilog_file_name'], args.plot_dir)
+    plot_scalar_bars(args.n64, min_score['scalar'], args.w_scalar, args.c_delay, args.c_area, args.plot_dir)
+    
 if __name__ == "__main__":
     main()
