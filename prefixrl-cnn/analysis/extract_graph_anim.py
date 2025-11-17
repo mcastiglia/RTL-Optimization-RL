@@ -241,7 +241,7 @@ def main():
         # Create GIF
         images = [imageio.imread(f) for f in frames]
         gif_path = os.path.join(args.plot_dir, f'episode_{episode}_segment.gif')
-        imageio.mimsave(gif_path, images, duration=0.5)
+        imageio.mimsave(gif_path, images, duration=1)
     # Now, for the overall GIF
     overall_frames = []
     overall_temp_dir = os.path.join(args.plot_dir, 'overall_frames')
