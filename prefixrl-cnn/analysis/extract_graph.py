@@ -1,6 +1,7 @@
 import csv
 import argparse
 import os
+import shutil
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
@@ -19,9 +20,11 @@ def parse_arguments():
     args.add_argument('--c_area', type=float, default=1e-2)
     args.add_argument('--file_name', type=str, required=True)
     args.add_argument('--input_dir', type=str, required=True)
+    args.add_argument('--verilog_dir', type=str, default=None)
     args.add_argument('--plot_dir', type=str, required=True)
     args.add_argument('--n64', action='store_true')
     args.add_argument('--pareto', action='store_true')
+    args.add_argument('--extract_verilog', action='store_true')
     args.add_argument('--w_step', type=float, default=0.1)
     return args.parse_args()
 
@@ -423,9 +426,62 @@ def animate_pareto_with_graph(n64: bool, min_scores: dict, output_path: str, c_d
     imageio.mimsave(gif_path, frames, duration=len(frames)/2.0, loop=0)
     
         
+def extract_verilog(verilog_dir, verilog_file_name, output_dir, w):
+     if verilog_dir is None or not os.path.isdir(verilog_dir):
+         print(f"Warning: verilog_dir '{verilog_dir}' is not a directory")
+         return None
+     
+     # Common filename candidates
+     candidates = [
+         os.path.join(verilog_dir, verilog_file_name),
+         os.path.join(verilog_dir, f"{verilog_file_name}.sv"),
+         os.path.join(verilog_dir, f"{verilog_file_name}.v"),
+     ]
+     
+     src_path = None
+     for path in candidates:
+         if os.path.isfile(path):
+             src_path = path
+             break
+     
+     # If not found, search recursively by basename (without extension)
+     if src_path is None:
+         target_stem = os.path.splitext(verilog_file_name)[0]
+         for root, _, files in os.walk(verilog_dir):
+             for fname in files:
+                 stem, ext = os.path.splitext(fname)
+                 if stem == target_stem and ext.lower() in {'.v', '.sv'}:
+                     src_path = os.path.join(root, fname)
+                     break
+             if src_path is not None:
+                 break
+     
+     if src_path is None:
+        print(f"Warning: Verilog file '{verilog_file_name}' not found in '{verilog_dir}'")
+        return None
+    
+     dest_dir = os.path.join(output_dir, "w_optimal_verilog")
+     os.makedirs(dest_dir, exist_ok=True)
+    
+    # Rename copied file to adder_{w}.sv
+     try:
+        w_str = f"{float(w):.2f}"
+     except Exception:
+        w_str = str(w)
+        
+     dest_filename = f"adder_{w_str}.sv"
+     dest_path = os.path.join(dest_dir, dest_filename)
+     try:
+         shutil.copy2(src_path, dest_path)
+         print(f"Copied Verilog to: {dest_path}")
+         return dest_path
+     except Exception as e:
+         print(f"Error copying Verilog file: {e}")
+         return None
         
 def main():
     args = parse_arguments()
+    # verilog_dir = os.path.join(args.input_dir)
     min_score = extract_min_scalarized_graph(args.file_name, args.w_scalar, args.c_delay, args.c_area)
     feature_arrays = extract_feature_lists(args.input_dir, min_score['verilog_file_name'])
     plot_prefix_graph(feature_arrays['nodelist'], feature_arrays['minlist'], feature_arrays['levellist'], min_score['verilog_file_name'], args.plot_dir, args.w_scalar)
@@ -433,10 +489,17 @@ def main():
     
     if args.pareto:
         min_scores = {}
+        seen_verilog = set()
         for w in np.arange(0.0, 1.0, args.w_step):
             min_score = extract_min_scalarized_graph(args.file_name, w, args.c_delay, args.c_area)
             feature_arrays = extract_feature_lists(args.input_dir, min_score['verilog_file_name'])
             min_scores[w] = {'area': min_score['area'], 'delay': min_score['delay'], 'feature_arrays': feature_arrays}
+            if args.extract_verilog:
+                verilog_name = min_score['verilog_file_name']
+                if verilog_name not in seen_verilog:
+                    extract_verilog(args.verilog_dir, verilog_name, args.plot_dir, w)
+                    seen_verilog.add(verilog_name)
+                
         plot_scalar_pareto(args.n64, min_scores, args.plot_dir, args.c_delay, args.c_area, args.w_step)
         animate_pareto_with_graph(args.n64, min_scores, args.plot_dir, args.c_delay, args.c_area)
 if __name__ == "__main__":
