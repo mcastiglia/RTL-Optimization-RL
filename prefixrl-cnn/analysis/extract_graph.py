@@ -379,6 +379,9 @@ def animate_pareto_with_graph(n64: bool, min_scores: dict, output_path: str, c_d
             n = len(nodelist)
             ax_left.set_xlim(-1, n)
             ax_left.set_ylim(-1, n)
+            # Rotate the left graph by 180 degrees (invert both axes)
+            ax_left.invert_xaxis()
+            ax_left.invert_yaxis()
         else:
             ax_left.text(0.5, 0.5, "Graph unavailable", ha="center", va="center")
             ax_left.set_axis_off()
@@ -417,7 +420,7 @@ def animate_pareto_with_graph(n64: bool, min_scores: dict, output_path: str, c_d
     gif_path = os.path.join(output_path, gif_name)
     print("Creating GIF...")
     frames = [imageio.imread(p) for p in frame_paths]
-    imageio.mimsave(gif_path, frames, duration=1.0, loop=0)
+    imageio.mimsave(gif_path, frames, duration=len(frames)/2.0, loop=0)
     
         
         
