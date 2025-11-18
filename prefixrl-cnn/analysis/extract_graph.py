@@ -228,6 +228,7 @@ def draw_prefix_graph_on_axes(nodelist, minlist, levellist, ax):
         
 def plot_scalar_bars(
     n64: bool,
+    use_analytic_model: bool,
     min_score: float,
     w_scalar: float,
     c_delay: float = 10.0,
@@ -236,19 +237,35 @@ def plot_scalar_bars(
 ):
     """Plot min_score against scalar scores for RCA, Sklansky, and Brent-Kung."""
     if not n64:
-        rca_delay = 1.932497550015271
-        rca_area = 256.96
-        sklansky_delay = 1.273223118529967
-        sklansky_area = 402.72
-        brent_kung_delay = 1.2637878323771907
-        brent_kung_area = 288.61
+        if use_analytic_model:
+            rca_delay = 80.5
+            rca_area = 31.0
+            sklansky_delay = 23.0
+            sklansky_area = 80.0
+            brent_kung_delay = 23.0
+            brent_kung_area = 57.0
+        else:
+            rca_delay = 1.932497550015271
+            rca_area = 256.96
+            sklansky_delay = 1.273223118529967
+            sklansky_area = 402.72
+            brent_kung_delay = 1.2637878323771907
+            brent_kung_area = 288.61
     else:
-        rca_delay = 3.47527738645499
-        rca_area = 486.78
-        sklansky_delay = 1.905973210983792
-        sklansky_area = 852.26
-        brent_kung_delay = 1.7058077655439832
-        brent_kung_area = 543.7
+        if use_analytic_model:
+            rca_delay = 160.5
+            rca_area = 63
+            sklansky_delay = 33.5
+            sklansky_area = 192.0
+            brent_kung_delay = 28.0
+            brent_kung_area = 120.0
+        else:
+            rca_delay = 3.47527738645499
+            rca_area = 486.78
+            sklansky_delay = 1.905973210983792
+            sklansky_area = 852.26
+            brent_kung_delay = 1.7058077655439832
+            brent_kung_area = 543.7
     
     rca_score = w_scalar * (c_delay * rca_delay) + (1 - w_scalar) * (c_area * rca_area)
     sklansky_score = w_scalar * (c_delay * sklansky_delay) + (1 - w_scalar) * (c_area * sklansky_area)
@@ -272,21 +289,37 @@ def plot_scalar_bars(
     plt.tight_layout()
     plt.savefig(os.path.join(output_path, "scalar_scores_w{}.png".format(w_scalar)), dpi=300, bbox_inches="tight")
     
-def plot_scalar_pareto(n64: bool, min_scores: dict, output_path: str = "scalar_scores.png", c_delay: float = 1.0, c_area: float = 1e-2, w_step: float = 0.1):
+def plot_scalar_pareto(n64: bool, use_analytic_model: bool, min_scores: dict, output_path: str = "scalar_scores.png", c_delay: float = 1.0, c_area: float = 1e-2, w_step: float = 0.1):
     if not n64:
-        rca_delay = 1.932497550015271
-        rca_area = 256.96
-        sklansky_delay = 1.273223118529967
-        sklansky_area = 402.72
-        brent_kung_delay = 1.2637878323771907
-        brent_kung_area = 288.61
+        if use_analytic_model:
+            rca_delay = 80.5
+            rca_area = 31.0
+            sklansky_delay = 23.0
+            sklansky_area = 80.0
+            brent_kung_delay = 23.0
+            brent_kung_area = 57.0
+        else:
+            rca_delay = 1.932497550015271
+            rca_area = 256.96
+            sklansky_delay = 1.273223118529967
+            sklansky_area = 402.72
+            brent_kung_delay = 1.2637878323771907
+            brent_kung_area = 288.61
     else:
-        rca_delay = 3.47527738645499
-        rca_area = 486.78
-        sklansky_delay = 1.905973210983792
-        sklansky_area = 852.26
-        brent_kung_delay = 1.7058077655439832
-        brent_kung_area = 543.7
+        if use_analytic_model:
+            rca_delay = 160.5
+            rca_area = 63
+            sklansky_delay = 33.5
+            sklansky_area = 192.0
+            brent_kung_delay = 28.0
+            brent_kung_area = 120.0
+        else:
+            rca_delay = 3.47527738645499
+            rca_area = 486.78
+            sklansky_delay = 1.905973210983792
+            sklansky_area = 852.26
+            brent_kung_delay = 1.7058077655439832
+            brent_kung_area = 543.7
         
     ws = np.arange(0.0, 1.0, w_step)
     rca_scores = [w * (c_delay * rca_delay) + (1 - w) * (c_area * rca_area) for w in ws]
@@ -321,21 +354,37 @@ def plot_scalar_pareto(n64: bool, min_scores: dict, output_path: str = "scalar_s
     ax.grid(axis="y", linestyle="--", alpha=0.3)
     plt.savefig(os.path.join(output_path, "scalar_pareto.png"), dpi=300, bbox_inches="tight")
     
-def animate_pareto_with_graph(n64: bool, min_scores: dict, output_path: str, c_delay: float = 1.0, c_area: float = 1e-2, gif_name: str = "scalar_pareto.gif"):
+def animate_pareto_with_graph(n64: bool, use_analytic_model: bool, min_scores: dict, output_path: str, c_delay: float = 1.0, c_area: float = 1e-2, gif_name: str = "scalar_pareto.gif"):
     if not n64:
-        rca_delay = 1.932497550015271
-        rca_area = 256.96
-        sklansky_delay = 1.273223118529967
-        sklansky_area = 402.72
-        brent_kung_delay = 1.2637878323771907
-        brent_kung_area = 288.61
+        if use_analytic_model:
+            rca_delay = 80.5
+            rca_area = 31.0
+            sklansky_delay = 23.0
+            sklansky_area = 80.0
+            brent_kung_delay = 23.0
+            brent_kung_area = 57.0
+        else:
+            rca_delay = 1.932497550015271
+            rca_area = 256.96
+            sklansky_delay = 1.273223118529967
+            sklansky_area = 402.72
+            brent_kung_delay = 1.2637878323771907
+            brent_kung_area = 288.61
     else:
-        rca_delay = 3.47527738645499
-        rca_area = 486.78
-        sklansky_delay = 1.905973210983792
-        sklansky_area = 852.26
-        brent_kung_delay = 1.7058077655439832
-        brent_kung_area = 543.7
+        if use_analytic_model:
+            rca_delay = 160.5
+            rca_area = 63
+            sklansky_delay = 33.5
+            sklansky_area = 192.0
+            brent_kung_delay = 28.0
+            brent_kung_area = 120.0
+        else:
+            rca_delay = 3.47527738645499
+            rca_area = 486.78
+            sklansky_delay = 1.905973210983792
+            sklansky_area = 852.26
+            brent_kung_delay = 1.7058077655439832
+            brent_kung_area = 543.7
     ws_sorted = sorted(min_scores.keys())
     rl_areas_all = [float(min_scores[w]['area']) for w in ws_sorted]
     rl_delays_all = [float(min_scores[w]['delay']) for w in ws_sorted]
@@ -485,7 +534,7 @@ def main():
     min_score = extract_min_scalarized_graph(args.file_name, args.w_scalar, args.c_delay, args.c_area)
     feature_arrays = extract_feature_lists(args.input_dir, min_score['verilog_file_name'])
     plot_prefix_graph(feature_arrays['nodelist'], feature_arrays['minlist'], feature_arrays['levellist'], min_score['verilog_file_name'], args.plot_dir, args.w_scalar)
-    plot_scalar_bars(args.n64, min_score['scalar'], args.w_scalar, args.c_delay, args.c_area, args.plot_dir)
+    plot_scalar_bars(args.n64, args.use_analytic_model, min_score['scalar'], args.w_scalar, args.c_delay, args.c_area, args.plot_dir)
     
     if args.pareto:
         min_scores = {}
@@ -500,7 +549,7 @@ def main():
                     extract_verilog(args.verilog_dir, verilog_name, args.plot_dir, w)
                     seen_verilog.add(verilog_name)
                 
-        plot_scalar_pareto(args.n64, min_scores, args.plot_dir, args.c_delay, args.c_area, args.w_step)
-        animate_pareto_with_graph(args.n64, min_scores, args.plot_dir, args.c_delay, args.c_area)
+        plot_scalar_pareto(args.n64, args.use_analytic_model, min_scores, args.plot_dir, args.c_delay, args.c_area, args.w_step)
+        animate_pareto_with_graph(args.n64, args.use_analytic_model, min_scores, args.plot_dir, args.c_delay, args.c_area)
 if __name__ == "__main__":
     main()
