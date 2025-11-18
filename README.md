@@ -1,24 +1,19 @@
-# RTL-Optimization-RL
-## EEL 6938 Group Project Outline
+# Graph-to-Gates: Optimization of Parallel Prefix Circuits using Reinforcement Learning
+## EEL 6938 Group Project
 
-### Group requirements
-4 people
-Group Members
-Cory Brynds
-John Gierlach
-Michael Castiglia
-Francisco Soriano
+```
+   _____                 _       _           _____       _             
+  / ____|               | |     | |         / ____|     | |            
+ | |  __ _ __ __ _ _ __ | |__   | |_ ___   | |  __  __ _| |_ ___  ___  
+ | | |_ | '__/ _` | '_ \| '_ \  | __/ _ \  | | |_ |/ _` | __/ _ \/ __| 
+ | |__| | | | (_| | |_) | | | | | || (_) | | |__| | (_| | ||  __/\__ \ 
+  \_____|_|  \__,_| .__/|_| |_|  \__\___/   \_____|\__,_|\__\___||___/ 
+                  | |                                                  
+                  |_|                                                  
+```
 
-### Research Project ideas
-Low Power GPU Architectures
-
-### Steps to do
-- Paper Presentation
-  - Literature Survey (1 week)
-  - We need to go through papers total to gather insight into current solutions/trends
-- Research Idea Proposal
-- Implementing the paper
-- Adding novelty
-  - Power aspect
-- Simulation (2 week)
-- Technical Report
+### Group
+Cory Brynds, MS CpE
+John Gierlach, MS CpE
+Michael Castiglia, MS CpE
+Francisco Soriano, MS CpE
